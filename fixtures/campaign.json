@@ -1,0 +1,76 @@
+{
+  "id": "rare-beauty-holiday-2026",
+  "brand": {
+    "name": "Rare Beauty",
+    "aliases": [
+      "rare beauty"
+    ],
+    "handles": {
+      "instagram": "rarebeauty",
+      "tiktok": "rarebeauty"
+    },
+    "productImageUrls": []
+  },
+  "brief": "Holiday 2026: show Rare Beauty in gift guides, GRWMs and hauls. Say the brand name on camera.",
+  "window": {
+    "start": "2026-10-01",
+    "end": "2026-11-06"
+  },
+  "creators": [
+    {
+      "name": "Rachael Potash",
+      "handles": {
+        "instagram": "rachaelpotash",
+        "tiktok": "rachaelpotash"
+      }
+    },
+    {
+      "name": "Preslie Watson",
+      "handles": {
+        "tiktok": "presliewatson"
+      }
+    },
+    {
+      "name": "Farina Aguinaldo",
+      "handles": {
+        "tiktok": "farinaaguinaldo"
+      }
+    },
+    {
+      "name": "The Glow Journey",
+      "handles": {
+        "tiktok": "theglowjourney"
+      }
+    },
+    {
+      "name": "Anya Weitz",
+      "handles": {
+        "tiktok": "anyaweitz"
+      }
+    },
+    {
+      "name": "Constança Costa Santos",
+      "handles": {
+        "tiktok": "constancacostasantos"
+      }
+    },
+    {
+      "name": "Fatima",
+      "handles": {
+        "tiktok": "fatimasupatrona"
+      }
+    },
+    {
+      "name": "Selena",
+      "handles": {
+        "tiktok": "selenamup"
+      }
+    },
+    {
+      "name": "Colby Odonis",
+      "handles": {
+        "tiktok": "colbyodonis"
+      }
+    }
+  ]
+}
