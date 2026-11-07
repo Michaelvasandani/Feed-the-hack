@@ -45,12 +45,12 @@ export default function Videos({ board, initial }: { board: Board; initial: { cr
       {/* Filters: one row */}
       <div className="flex flex-wrap items-center gap-2 mb-5">
         <Seg value={tagFilter} onChange={setTagFilter} options={[["all", "All"], ["untagged", `Untagged · ${board.totals.untaggedVideos}`], ["tagged", "Tagged"]]} />
-        <select value={creator} onChange={(e) => setCreator(e.target.value)} className="field !w-auto !py-1 !text-[13px] cursor-pointer">
+        <select value={creator} onChange={(e) => setCreator(e.target.value)} className="glass rounded-full px-3.5 py-1.5 !text-[13px] cursor-pointer">
           <option value="all">All creators</option>
           {board.creators.filter((c) => c.videos).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
         </select>
         <div className="flex flex-wrap gap-1.5">
-          <button onClick={() => setFormat("all")} className={cx("rounded-full px-2.5 py-0.5 text-[11px] font-medium cursor-pointer transition", format === "all" ? "bg-fg text-ink" : "bg-fill text-soft hover:text-fg")}>All formats</button>
+          <button onClick={() => setFormat("all")} className={cx("rounded-full px-2.5 py-0.5 text-[11px] font-medium cursor-pointer transition", format === "all" ? "bg-fg text-ink" : "glass text-soft hover:text-fg")}>All formats</button>
           {formats.map((f) => (
             <button key={f} onClick={() => setFormat(f)} className={cx("rounded-full cursor-pointer transition", format === f ? "opacity-100 ring-2 ring-fg/70" : "opacity-60 hover:opacity-100")}><FormatChip format={f} size="xs" /></button>
           ))}
@@ -71,9 +71,9 @@ export default function Videos({ board, initial }: { board: Board; initial: { cr
 
 function Seg<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: [T, string][] }) {
   return (
-    <div className="flex rounded-[9px] bg-fill p-0.5">
+    <div className="glass flex rounded-full p-1">
       {options.map(([k, label]) => (
-        <button key={k} onClick={() => onChange(k)} className={cx("rounded-[7px] px-3 py-1 text-[13px] cursor-pointer whitespace-nowrap", value === k ? "bg-segment text-fg font-medium shadow-[0_1px_3px_rgb(0_0_0/0.12)]" : "text-soft hover:text-fg")}>{label}</button>
+        <button key={k} onClick={() => onChange(k)} className={cx("rounded-full px-3 py-1 text-[13px] cursor-pointer whitespace-nowrap", value === k ? "bg-segment text-fg font-medium shadow-[inset_0_1px_0.5px_rgb(255_255_255/0.35)]" : "text-soft hover:text-fg")}>{label}</button>
       ))}
     </div>
   );

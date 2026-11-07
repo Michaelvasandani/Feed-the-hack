@@ -20,10 +20,10 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
         eyebrow="Roster"
         title={`${board.totals.creatorsPosted} of ${board.totals.creatorsTotal} creators posted`}
         right={
-          <div className="flex rounded-[9px] bg-fill p-0.5">
+          <div className="glass flex rounded-full p-1">
             {filters.map((f) => (
-              <button key={f} onClick={() => setFilter(f)} className={cx("relative rounded-[7px] px-3 py-1 text-[13px] capitalize cursor-pointer", filter === f ? "text-fg font-medium" : "text-soft hover:text-fg")}>
-                {filter === f && <motion.div layoutId="cf" transition={{ duration: 0.25 }} className="absolute inset-0 rounded-[7px] bg-segment shadow-[0_1px_3px_rgb(0_0_0/0.12)]" />}
+              <button key={f} onClick={() => setFilter(f)} className={cx("relative rounded-full px-3 py-1 text-[13px] capitalize cursor-pointer", filter === f ? "text-fg font-medium" : "text-soft hover:text-fg")}>
+                {filter === f && <motion.div layoutId="cf" transition={{ duration: 0.25 }} className="absolute inset-0 rounded-full bg-segment shadow-[inset_0_1px_0.5px_rgb(255_255_255/0.35)]" />}
                 <span className="relative">{f} <span className="text-mute">{counts[f]}</span></span>
               </button>
             ))}

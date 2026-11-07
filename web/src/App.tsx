@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import BoardView from "./Board";
 import { api, runCampaign } from "./lib";
 import Running from "./Running";
@@ -48,6 +48,7 @@ export default function App() {
 
   return (
     <div>
+      <SpaceBackground dim={view.kind === "board" ? 0.62 : 0.4} />
       <AnimatePresence mode="wait">
         <motion.div key={view.kind} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
           {view.kind === "setup" && <Setup onRun={start} recent={recent} onOpen={(id) => api.board(id).then((board) => setView({ kind: "board", board }))} />}
@@ -55,6 +56,16 @@ export default function App() {
           {view.kind === "board" && <BoardView board={view.board} onHome={() => setView({ kind: "setup" })} onRerun={() => (last ? start(last.c, last.source) : api.campaign(view.board.campaign.id).then((c) => start(c, "live")))} />}
         </motion.div>
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** Orion Nebula fly-through (NASA/JPL-Caltech, public domain). Shows the still frame when the viewer prefers reduced motion. */
+function SpaceBackground({ dim }: { dim: number }) {
+  const still = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (
+    <div className="space-bg" style={{ "--dim": dim } as CSSProperties} aria-hidden>
+      {still ? <img src="/space.jpg" alt="" /> : <video src="/space.mp4" poster="/space.jpg" autoPlay muted loop playsInline preload="auto" />}
     </div>
   );
 }

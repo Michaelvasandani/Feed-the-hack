@@ -10,7 +10,7 @@ export function Card({ children, className, delay = 0 }: { children: ReactNode; 
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: delay * 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-      className={cx("surface rounded-[18px]", className)}
+      className={cx("surface rounded-[22px]", className)}
     >
       {children}
     </motion.div>
@@ -84,16 +84,16 @@ export function Button({ children, onClick, variant = "primary", disabled, class
   children: ReactNode; onClick?: () => void; variant?: "primary" | "ghost" | "outline"; disabled?: boolean; className?: string; type?: "button" | "submit";
 }) {
   const v = {
-    primary: "bg-accent text-white hover:brightness-110 active:brightness-95",
+    primary: "glass glass-tint text-white hover:brightness-110 active:scale-[0.97]",
     ghost: "text-accent hover:bg-fill",
-    outline: "bg-fill text-fg hover:bg-fill-2",
+    outline: "glass text-fg hover:brightness-125 active:scale-[0.97]",
   };
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={cx("inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[14px] font-medium transition-[filter,background-color] disabled:opacity-40 disabled:pointer-events-none cursor-pointer", v[variant], className)}
+      className={cx("inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[14px] font-medium transition-[filter,background-color,transform] duration-200 disabled:opacity-40 disabled:pointer-events-none cursor-pointer", v[variant], className)}
     >
       {children}
     </button>
@@ -110,7 +110,7 @@ export function Modal({ open, onClose, children, title }: { open: boolean; onClo
     <AnimatePresence>
       {open && (
         <motion.div className="fixed inset-0 z-50 grid place-items-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-          <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+          <div className="absolute inset-0 bg-black/30" onClick={onClose} />
           <motion.div
             role="dialog"
             aria-modal="true"
@@ -118,11 +118,11 @@ export function Modal({ open, onClose, children, title }: { open: boolean; onClo
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
-            className="relative w-full max-w-lg rounded-[20px] bg-panel p-6 shadow-[0_24px_80px_rgb(0_0_0/0.25)] max-h-[85dvh] overflow-auto scroll-thin"
+            className="relative w-full max-w-lg rounded-[26px] glass-sheet p-6 max-h-[85dvh] overflow-auto scroll-thin"
           >
             <div className="flex items-center justify-between gap-4 mb-4">
               <div className="text-[17px] font-semibold">{title}</div>
-              <button onClick={onClose} aria-label="Close" className="h-7 w-7 grid place-items-center rounded-full bg-fill text-soft hover:bg-fill-2 cursor-pointer"><X size={14} strokeWidth={2.5} /></button>
+              <button onClick={onClose} aria-label="Close" className="glass h-8 w-8 grid place-items-center rounded-full text-soft hover:text-fg cursor-pointer"><X size={14} strokeWidth={2.5} /></button>
             </div>
             {children}
           </motion.div>

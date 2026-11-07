@@ -31,18 +31,18 @@ export default function Board({ board, onHome, onRerun }: { board: BoardT; onHom
 
   return (
     <div className="min-h-dvh pb-32">
-      <header className="sticky top-0 z-40 border-b border-line bg-ink/80 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 grid grid-cols-[1fr_auto_1fr] items-center gap-4 h-14">
+      <header className="sticky top-3 z-40 mx-auto max-w-7xl px-3 sm:px-4">
+        <div className="glass rounded-full flex justify-between md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-4 h-14 pl-4 pr-2">
           <div className="flex items-center gap-3 min-w-0">
             <Logo onClick={onHome} />
             <div className="hidden lg:block text-[13px] text-mute truncate">
               {board.campaign.brandName} · {date(board.campaign.window.start)} – {date(board.campaign.window.end)}
             </div>
           </div>
-          <nav role="tablist" className="hidden md:flex rounded-[9px] bg-fill p-0.5">
+          <nav role="tablist" className="hidden md:flex rounded-full bg-black/20 p-1 shadow-[inset_0_1px_2px_rgb(0_0_0/0.3)]">
             {TABS.map((t) => (
-              <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className={cx("relative px-3.5 py-1 text-[13px] whitespace-nowrap cursor-pointer rounded-[7px]", tab === t.key ? "text-fg font-medium" : "text-soft hover:text-fg")}>
-                {tab === t.key && <motion.div layoutId="tab" transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }} className="absolute inset-0 rounded-[7px] bg-segment shadow-[0_1px_3px_rgb(0_0_0/0.12)]" />}
+              <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className={cx("relative px-4 py-1.5 text-[13px] whitespace-nowrap cursor-pointer rounded-full", tab === t.key ? "text-fg font-medium" : "text-soft hover:text-fg")}>
+                {tab === t.key && <motion.div layoutId="tab" transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }} className="glass absolute inset-0 rounded-full !shadow-[inset_0_1px_0.5px_rgb(255_255_255/0.4),inset_0_0_0_0.5px_rgb(255_255_255/0.2)]" />}
                 <span className="relative">{t.label}</span>
               </button>
             ))}
@@ -52,14 +52,14 @@ export default function Board({ board, onHome, onRerun }: { board: BoardT; onHom
           </div>
         </div>
         {/* Compact screens: a scrolling row of the same tabs. */}
-        <div className="md:hidden flex gap-1 overflow-x-auto scroll-thin px-4 pb-2">
+        <div className="md:hidden flex gap-1.5 overflow-x-auto [scrollbar-width:none] pt-2 px-1">
           {TABS.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={cx("shrink-0 rounded-full px-3 py-1 text-[13px] cursor-pointer", tab === t.key ? "bg-fg text-ink font-medium" : "bg-fill text-soft")}>{t.label}</button>
+            <button key={t.key} onClick={() => setTab(t.key)} className={cx("shrink-0 rounded-full px-3 py-1 text-[13px] cursor-pointer", tab === t.key ? "glass text-fg font-medium" : "bg-black/30 backdrop-blur-md text-soft")}>{t.label}</button>
           ))}
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-8">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-10">
         <AnimatePresence mode="wait">
           <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
             {tab === "overview" && <Overview board={board} setTab={setTab} goVideos={goVideos} />}
@@ -91,10 +91,10 @@ function Overview({ board, setTab, goVideos }: { board: BoardT; setTab: (t: Tab)
       <section className="pt-2 pb-2">
         <div>
           <div className="text-[13px] font-medium text-mute mb-2">{board.campaign.brandName} · {date(board.campaign.window.start)} – {date(board.campaign.window.end)}</div>
-          <h1 className="text-[28px] sm:text-[40px] font-semibold tracking-[-0.03em] leading-[1.1] max-w-4xl">
+          <h1 className="text-[28px] sm:text-[40px] font-semibold tracking-[-0.03em] leading-[1.1] max-w-4xl [text-shadow:0_2px_24px_rgb(0_0_0/0.5)]">
             <CountUp value={t.views} format={(n) => compact(n)} /> views from {t.videos} videos.{" "}
             {t.untaggedVideos > 0 && (
-              <span className="text-mute">
+              <span className="text-white/55">
                 {pct(untaggedShare)} came from{" "}
                 <button className="text-accent hover:underline underline-offset-4 decoration-2 cursor-pointer" onClick={() => goVideos({ untagged: true })}>
                   {t.untaggedVideos} videos that never tagged you
@@ -262,7 +262,7 @@ function Timeline({ data }: { data: BoardT["timeline"] }) {
             cursor={{ stroke: "var(--separator)", strokeWidth: 1 }}
             content={({ active, payload }) =>
               active && payload?.[0] ? (
-                <div className="rounded-[10px] bg-panel px-3 py-2 text-xs shadow-[0_4px_20px_rgb(0_0_0/0.15)]">
+                <div className="rounded-[14px] glass-sheet px-3 py-2 text-xs">
                   <div className="text-mute mb-0.5">{date(payload[0].payload.date)}</div>
                   <div className="tabular-nums text-fg">{compact(payload[0].payload.views)} views</div>
                   <div className="text-mute">{payload[0].payload.videos} video{payload[0].payload.videos === 1 ? "" : "s"} published</div>
@@ -301,7 +301,7 @@ function FormatBars({ board }: { board: BoardT }) {
             </div>
             <AnimatePresence>
               {hover === f.format && (
-                <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-10 right-0 top-full mt-1 rounded-[10px] bg-panel px-3 py-2 text-xs shadow-[0_4px_20px_rgb(0_0_0/0.15)]">
+                <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-10 right-0 top-full mt-1 rounded-[14px] glass-sheet px-3 py-2 text-xs">
                   <div className="font-medium text-fg mb-0.5">{m.label}</div>
                   <div className="text-mute">{f.videos} videos · {compact(f.views)} views · {pct(f.avgEngagementPerViewPct, 1)} engagement</div>
                 </motion.div>
@@ -342,7 +342,7 @@ function AskBar({ board }: { board: BoardT }) {
       <div className="mx-auto max-w-3xl px-4 pb-4 pointer-events-auto">
         <AnimatePresence>
           {answer && (
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} className="mb-2 rounded-[18px] bg-panel/90 backdrop-blur-xl p-4 shadow-[0_8px_32px_rgb(0_0_0/0.14),inset_0_0_0_0.5px_var(--separator)] max-h-[45dvh] overflow-auto scroll-thin">
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} className="mb-2 rounded-[24px] glass-sheet p-4 max-h-[45dvh] overflow-auto scroll-thin">
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="text-xs text-mute">{answer.q}</div>
                 <button className="text-mute hover:text-fg cursor-pointer" onClick={() => setAnswer(null)}><X size={15} /></button>
@@ -352,13 +352,13 @@ function AskBar({ board }: { board: BoardT }) {
           )}
         </AnimatePresence>
         {!answer && (
-          <div className="flex gap-1.5 mb-2 overflow-x-auto [scrollbar-width:none]">
+          <div className="flex gap-1.5 mb-2 overflow-x-auto [scrollbar-width:none] p-1 -m-1">
             {SUGGESTIONS.map((s) => (
-              <button key={s} onClick={() => ask(s)} className="shrink-0 rounded-full bg-panel/85 backdrop-blur-xl px-3 py-1.5 text-[13px] text-soft shadow-[inset_0_0_0_0.5px_var(--separator)] hover:text-fg transition cursor-pointer">{s}</button>
+              <button key={s} onClick={() => ask(s)} className="glass shrink-0 rounded-full px-3.5 py-1.5 text-[13px] text-soft hover:text-fg transition cursor-pointer">{s}</button>
             ))}
           </div>
         )}
-        <form onSubmit={(e) => { e.preventDefault(); ask(q); }} className="flex items-center gap-2 rounded-full bg-panel/85 backdrop-blur-xl p-1.5 pl-5 shadow-[0_8px_32px_rgb(0_0_0/0.14),inset_0_0_0_0.5px_var(--separator)]">
+        <form onSubmit={(e) => { e.preventDefault(); ask(q); }} className="glass flex items-center gap-2 rounded-full p-1.5 pl-5">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask about this campaign" aria-label="Ask about this campaign" className="flex-1 bg-transparent text-[15px] placeholder:text-mute min-w-0" />
           <Button type="submit" className="!p-0 h-8 w-8" disabled={busy || !q.trim()}>{busy ? <Spinner /> : <ArrowUp size={17} strokeWidth={2.5} />}</Button>
         </form>
