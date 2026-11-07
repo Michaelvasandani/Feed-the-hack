@@ -59,7 +59,9 @@ export default function Setup({ onRun, recent, onOpen }: {
     setPaste("");
     setShowPaste(false);
   };
-  const valid = c.brand.name.trim() && c.creators.some((x) => x.handles.tiktok || x.handles.instagram);
+  const hasRoster = c.creators.some((x) => x.handles.tiktok || x.handles.instagram);
+  // With no roster, the run searches everyone for the brand and lists who posted.
+  const valid = !!c.brand.name.trim();
   const submit = () => {
     const brandSlug = c.brand.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     onRun({
@@ -67,6 +69,7 @@ export default function Setup({ onRun, recent, onOpen }: {
       id: c.id || `${brandSlug}-${c.window.start}`,
       brand: { ...c.brand, aliases: c.brand.aliases.length ? c.brand.aliases : [c.brand.name.toLowerCase()] },
       creators: c.creators.filter((x) => x.handles.tiktok || x.handles.instagram).map((x) => ({ ...x, name: x.name || (x.handles.tiktok ?? x.handles.instagram)! })),
+      discover: !hasRoster,
     }, "live");
   };
 
@@ -177,7 +180,7 @@ export default function Setup({ onRun, recent, onOpen }: {
               <div className="flex-1 space-y-1.5 overflow-auto scroll-thin max-h-[23rem] pr-1">
                 {c.creators.length === 0 && (
                   <div className="grid place-items-center text-center text-sm text-mute h-40 rounded-xl border border-dashed border-white/10">
-                    Paste handles or load the demo to start
+                    <span>Paste handles or load the demo.<br /><span className="text-xs">Or leave it empty and we'll find the creators already posting about {c.brand.name.trim() || "your brand"}.</span></span>
                   </div>
                 )}
                 <AnimatePresence initial={false}>
@@ -195,11 +198,11 @@ export default function Setup({ onRun, recent, onOpen }: {
           </div>
 
           <div className="mt-6 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <button className="text-xs text-mute hover:text-soft underline-offset-4 hover:underline cursor-pointer disabled:opacity-40" disabled={!valid} onClick={() => valid && onRun({ ...c, id: c.id || "demo" }, "fixtures")}>
+            <button className="text-xs text-mute hover:text-soft underline-offset-4 hover:underline cursor-pointer disabled:opacity-40" disabled={!valid || !hasRoster} onClick={() => valid && hasRoster && onRun({ ...c, id: c.id || "demo" }, "fixtures")}>
               Offline mode: use sample videos
             </button>
             <Button onClick={submit} disabled={!valid} className="!px-6 !py-3 text-base">
-              Build the board <ArrowRight size={17} />
+              {hasRoster ? "Build the board" : "Find creators & build"} <ArrowRight size={17} />
             </Button>
           </div>
         </motion.section>

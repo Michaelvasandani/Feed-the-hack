@@ -14,6 +14,7 @@ export interface Campaign {
   brief: string;
   window: { start: string; end: string };
   creators: Creator[];
+  discover?: boolean; // also find creators outside the roster who posted about the brand
 }
 
 export type MatchSource = "caption" | "transcript" | "onScreenText" | "mention" | "visual";

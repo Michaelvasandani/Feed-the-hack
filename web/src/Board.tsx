@@ -75,7 +75,7 @@ function Overview({ board, setTab, goVideos }: { board: BoardT; setTab: (t: Tab)
   const t = board.totals;
   const win = board.formats.find((f) => f.winner);
   const untaggedShare = t.views ? (t.untaggedViews / t.views) * 100 : 0;
-  const rehire = board.creators.filter((c) => c.recommendation === "rehire");
+  const rehire = board.creators.filter((c) => c.recommendation === "rehire" || c.recommendation === "recruit");
   const nudge = board.creators.filter((c) => c.recommendation === "nudge");
   const top = board.videos.filter((v) => v.views != null).slice(0, 6);
 
