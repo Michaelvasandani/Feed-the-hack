@@ -101,3 +101,17 @@ def test_discovery_only_campaign(campaign):
     board = build_board(campaign, {"videos": [vid(creatorHandle="x")]})
     assert board["totals"]["creatorsTotal"] == 0
     assert board["creators"][0]["discovered"]
+
+
+def test_board_has_timeline_and_feed_fields():
+    root = Path(__file__).resolve().parent.parent / "fixtures"
+    camp = json.loads((root / "campaign.json").read_text())
+    vids = json.loads((root / "videos.json").read_text())
+    vids["videos"][0]["firstMentionSeconds"] = 2
+    vids["activity"] = {f'{vids["videos"][0]["platform"]}:{vids["videos"][0]["creatorHandle"].lower()}': 5}
+    b = build_board(camp, vids)
+    assert sum(d["videos"] for d in b["timeline"]) == b["totals"]["videos"]
+    assert b["totals"]["earlyMentionPct"] == 100.0
+    c = next(c for c in b["creators"] if vids["videos"][0]["creatorHandle"].lower() in {h.lower() for h in c["handles"].values()})
+    assert c["offBriefPosts"] == 5 - c["videos"]
+    assert b["generatedAt"] > 0

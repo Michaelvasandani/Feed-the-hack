@@ -92,3 +92,26 @@ def test_insights_backend_error_falls_back_to_rules(monkeypatch, board):
         raise RuntimeError("down")
     monkeypatch.setattr(insights, "_gmi_chat", boom)
     assert insights.campaign_insights(board, backend="gmi")["insightsSource"] == "rules"
+
+
+def test_rollup_audience_averages_comment_reads(board):
+    aud = {"score": 0.5, "purchaseIntent": 0.2, "summary": "people want it", "topQuote": None}
+    vids = [{**v, "signals": {"audience": aud if i == 0 else None}} for i, v in enumerate(board["videos"])]
+    out = insights.rollup_audience({**board, "videos": vids})
+    assert out["videos"][0]["sentiment"] == aud and out["videos"][1]["sentiment"] is None
+    assert out["totals"]["avgSentiment"] == 0.5
+    top = out["videos"][0]["creatorHandle"].lower()
+    c = next(c for c in out["creators"] if top in {h.lower() for h in c["handles"].values()})
+    assert c["sentimentScore"] == 0.5 and c["purchaseIntent"] == 0.2
+
+
+def test_rule_brief_and_drafts_without_keys(board):
+    b = insights.add_insights(board)
+    brief = insights.next_brief(b)
+    assert brief["briefSource"] == "rules" and brief["format"] == b["formats"][0]["format"]
+    assert set(insights.NextBrief.model_fields) <= set(brief)
+    quiet = next(c for c in b["creators"] if c["recommendation"] == "nudge")
+    assert "haven't seen a post" in insights.draft_message(b, quiet)["body"]
+    assert "paid collab" in insights.rule_draft(b, {**quiet, "recommendation": "recruit"})["body"]
+    with pytest.raises(RuntimeError):
+        insights.ask_board(b, "who should I rehire?")

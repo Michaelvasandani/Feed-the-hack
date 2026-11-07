@@ -103,6 +103,22 @@ def video_url(r):
     return f"https://www.instagram.com/p/{m.group(1)}/" if m else f'https://www.instagram.com/{r["profileHandle"]}/'
 
 
+def brand_moments(media, aliases):
+    """Where in the video the brand is said or shown, with timestamps."""
+    out = []
+    for ch in media.get("transcriptChunks") or []:
+        if any(a in (ch.get("text") or "").lower() for a in aliases):
+            out.append({"source": "transcript", "atSeconds": ch.get("startSeconds") or 0, "text": ch["text"]})
+    seen = set()
+    for f in media.get("frames") or []:
+        for reg in f.get("onScreenTextRegions") or []:
+            t = reg.get("text") or ""
+            if any(a in t.lower() for a in aliases) and t.lower() not in seen:
+                seen.add(t.lower())
+                out.append({"source": "onScreenText", "atSeconds": f.get("timestampSeconds") or 0, "text": t})
+    return sorted(out, key=lambda m: m["atSeconds"])
+
+
 def to_video(r, camp):
     def low(x):
         return (x or "").lower()
@@ -126,6 +142,7 @@ def to_video(r, camp):
         matched.append("mention")
     if "visual" in (r.get("matchedQueries") or []):
         matched.append("visual")
+    moments = brand_moments(m, aliases)
     return {
         "id": r["id"], "platform": r["platform"], "url": video_url(r),
         "creatorHandle": r["profileHandle"], "publishedAt": r["publishedAt"],
@@ -137,6 +154,11 @@ def to_video(r, camp):
         "viewsPerFollowerPct": r.get("viewsRatePerFollowers"),
         "engagementPerViewPct": r.get("engagementRatePerViews"),
         "matchedBy": matched, "tagged": tagged, "format": None,
+        "profilePictureUrl": r.get("profilePictureUrl"),
+        "brandMoments": moments,
+        "firstMentionSeconds": moments[0]["atSeconds"] if moments else None,
+        "popularComments": [{"handle": c.get("profileHandle"), "text": c.get("content"), "likes": c.get("likesCount") or 0}
+                            for c in (r.get("popularComments") or [])[:8]],
     }
 
 
@@ -150,6 +172,18 @@ def keep_result(r, camp, roster):
     skip = {h.lower().lstrip("@") for h in [*camp["brand"]["handles"].values(),
                                             *(camp.get("discovery") or {}).get("excludeHandles", [])]}
     return key[1] not in skip
+
+
+def fetch_activity(camp, handles):
+    """Every roster post in the window, brand or not, so the board can show who's active but off-brief."""
+    published = {"after": camp["window"]["start"], **({"before": camp["window"]["end"]} if camp["window"].get("end") else {})}
+    body = {"operator": "and", "filters": {"publishedAt": published, "platform": {"includes": ["instagram", "tiktok"]},
+                                           "profileHandle": {"exactMatch": {"values": sorted(handles)}}}}
+    out = {}
+    for r in search_all(body)[0]:
+        k = f'{r["platform"]}:{r["profileHandle"].lower()}'
+        out[k] = out.get(k, 0) + 1
+    return out
 
 
 def fetch_videos(camp):
@@ -167,7 +201,40 @@ def fetch_videos(camp):
         if keep_result(r, camp, roster) and r["id"] not in seen:
             seen.add(r["id"])
             out.append(to_video(r, camp))
-    return {"campaignId": camp["id"], "fetchedAt": ts, "videos": out}
+    try:
+        activity = fetch_activity(camp, {h for _, h in roster}) if roster else {}
+    except OrianeError as e:  # nice-to-have; the board works without it
+        print(f"activity: {e}")
+        activity = {}
+    return {"campaignId": camp["id"], "fetchedAt": ts, "videos": out, "activity": activity}
+
+
+def discover_prospects(camp, limit=12, min_followers=5000):
+    """Creators already posting about the brand in the window who aren't on the roster,
+    ranked by how far their best video outran their follower count."""
+    from app.relevance import filter_relevant
+    disc = {**camp, "discover": True, "discovery": {"minFollowers": min_followers, **(camp.get("discovery") or {})}}
+    results, _ = search_all(build_query(disc), sort="viewsRatePerFollowers:desc", max_results=DISCOVER_MAX_VIDEOS)
+    roster = {(p, h.lower()) for c in camp.get("creators") or [] for p, h in c["handles"].items()}
+    raw = {r["id"]: r for r in results if keep_result(r, disc, roster) and (r["platform"], r["profileHandle"].lower()) not in roster}
+    videos = filter_relevant(disc, {"videos": [to_video(r, disc) for r in raw.values()]})["videos"]
+    groups = {}
+    for v in videos:
+        groups.setdefault((v["platform"], v["creatorHandle"].lower()), []).append(v)
+    best = lambda vs: max(v.get("viewsPerFollowerPct") or 0 for v in vs)  # noqa: E731
+    out = []
+    for vs in sorted(groups.values(), key=best, reverse=True)[:limit]:
+        top = max(vs, key=lambda v: v.get("viewsPerFollowerPct") or 0)
+        r = raw[top["id"]]
+        out.append({
+            "handle": top["creatorHandle"], "platform": top["platform"],
+            "displayName": r.get("profileDisplayName"), "profilePictureUrl": r.get("profilePictureUrl"),
+            "followers": top.get("followers"), "bio": r.get("profileBio"), "publicEmail": None,
+            "videos": len(vs), "views": sum(v.get("views") or 0 for v in vs), "bestViewsPerFollowerPct": best(vs),
+            "tagged": any(v["tagged"] for v in vs),
+            "topVideo": {k: top.get(k) for k in ("id", "url", "thumbnailUrl", "caption", "views", "viewsPerFollowerPct", "matchedBy")},
+        })
+    return out
 
 
 if __name__ == "__main__":

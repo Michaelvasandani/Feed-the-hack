@@ -1,10 +1,14 @@
 """Intelligence layer: board.json -> board.json + per-video signals + campaign insights.
 
-Two steps:
-- Per video (many calls, parallel): hook, product prominence, sentiment and product claims.
-  Runs on GMI Cloud (OpenAI-compatible, open models) when GMI_API_KEY is set, else a heuristic.
+Two steps run with every board:
+- Per video (many calls, parallel): hook, product prominence, sentiment, product claims and, when
+  Oriane returned comments, what the audience says. Runs on GMI Cloud (OpenAI-compatible, open
+  models) when GMI_API_KEY is set, else a heuristic.
 - Per campaign (one call): a headline, ranked actions and a draft next brief, written from the
   board numbers plus the video signals. Claude when ANTHROPIC_API_KEY is set, else GMI, else rules.
+
+On demand (board tabs): a structured next brief, outreach drafts, answers to questions about the
+board, and an AI sample video of the brief (GMI request queue).
 
 Force a backend with SIGNALS_BACKEND=gmi|heuristic and INSIGHTS_BACKEND=claude|gmi|rules.
 Model signals are cached per backend and video id in .cache/signals.json.
@@ -14,6 +18,7 @@ import os
 import re
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -30,6 +35,8 @@ GMI_BASE_URL = os.environ.get("GMI_BASE_URL", "https://api.gmi-serving.com/v1")
 GMI_MODEL = os.environ.get("GMI_MODEL", "deepseek-ai/DeepSeek-V4-Flash")
 GMI_INSIGHTS_MODEL = os.environ.get("GMI_INSIGHTS_MODEL", "deepseek-ai/DeepSeek-V4-Pro")
 CLAUDE_MODEL = os.environ.get("INSIGHTS_MODEL", "claude-opus-5-5")
+GMI_VIDEO_MODEL = os.environ.get("GMI_VIDEO_MODEL", "kling-3.0-turbo-t2v")
+GMI_QUEUE_URL = os.environ.get("GMI_QUEUE_URL", "https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey")
 CACHE_PATH = Path(__file__).resolve().parent.parent / ".cache" / "signals.json"
 _lock = threading.Lock()
 
@@ -43,7 +50,8 @@ Return only a JSON object with these keys:
 - "hookType": one of {HOOK_TYPES}
 - "productProminence": how central the brand's product is. One of {PROMINENCE} (hero = the video is about it)
 - "sentiment": the creator's attitude to the brand's product. One of {SENTIMENT}
-- "claims": up to 3 short things the creator says about the product, in English (empty list if none)"""
+- "claims": up to 3 short things the creator says about the product, in English (empty list if none)
+- "audience": null if no comments are given, else {{"score": -1 to 1 how the commenters feel about the video and brand, "purchaseIntent": 0 to 1 share of comments that signal wanting or buying the product, "summary": "at most 14 words on what commenters say, in English", "topQuote": "the most telling comment, verbatim, or null"}}"""
 
 INSIGHTS_SYSTEM = """You are the strategist at an agency running a UGC creator campaign. You get the campaign's board numbers and per-video signals.
 Creators with "discovered": true were not hired; they posted about the brand on their own, so the action for them is "recruit", not "rehire".
@@ -54,12 +62,20 @@ Return only a JSON object with these keys:
 - "nextBrief": a short draft brief for the next wave (3 to 5 sentences): format, hook style, what to say about the product"""
 
 
+class Audience(BaseModel):
+    score: float = Field(ge=-1, le=1)
+    purchaseIntent: float = Field(ge=0, le=1)
+    summary: str
+    topQuote: str | None = None
+
+
 class VideoSignals(BaseModel):
     hook: str
     hookType: Literal["question", "bold_claim", "story", "problem", "demo", "trend", "other"]
     productProminence: Literal["hero", "featured", "background", "none"]
     sentiment: Literal["positive", "mixed", "neutral", "negative"]
     claims: list[str] = Field(default_factory=list)
+    audience: Audience | None = None
 
 
 class Action(BaseModel):
@@ -94,25 +110,29 @@ def _parse_json(text):
     return json.loads(m.group(0))
 
 
-def _gmi_chat(system, user, max_tokens=1000, model=GMI_MODEL):
+def _gmi_request(url, body=None, timeout=60):
     key = os.environ.get("GMI_API_KEY")
     if not key:
         raise RuntimeError("GMI_API_KEY is not set")
-    body = {"model": model, "temperature": 0.2, "max_tokens": max_tokens,
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-    if "deepseek" in model.lower():
-        # DeepSeek-V4 reasons by default and can spend the whole token budget before answering.
-        body["thinking"] = {"type": "disabled"}
-    req = urllib.request.Request(f"{GMI_BASE_URL}/chat/completions", data=json.dumps(body).encode(), method="POST",
+    req = urllib.request.Request(url, data=json.dumps(body).encode() if body is not None else None,
+                                 method="POST" if body is not None else "GET",
                                  # GMI's Cloudflare front rejects urllib's default User-Agent (error 1010).
                                  headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}",
                                           "User-Agent": "campaign-board/1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            raw = json.load(r)
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.load(r)
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"GMI HTTP {e.code} {e.read()[:300].decode(errors='replace')}") from e
-    return raw["choices"][0]["message"]["content"]
+
+
+def _gmi_chat(system, user, max_tokens=1000, model=GMI_MODEL, temperature=0.2):
+    body = {"model": model, "temperature": temperature, "max_tokens": max_tokens,
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+    if "deepseek" in model.lower():
+        # DeepSeek-V4 reasons by default and can spend the whole token budget before answering.
+        body["thinking"] = {"type": "disabled"}
+    return _gmi_request(f"{GMI_BASE_URL}/chat/completions", body)["choices"][0]["message"]["content"]
 
 
 # ---- per-video signals -------------------------------------------------------------------------
@@ -123,6 +143,8 @@ def _video_prompt(v, brand):
         parts.append(f"Transcript: {v['transcript'][:3000]}")
     if v.get("onScreenText"):
         parts.append("On-screen text: " + " | ".join(v["onScreenText"][:20]))
+    if v.get("popularComments"):
+        parts.append("Top comments:\n" + "\n".join(f"[{c['likes']} likes] {c['text']}" for c in v["popularComments"]))
     return "\n".join(parts)
 
 
@@ -146,7 +168,8 @@ def heuristic_signals(v, brand):
     matched = set(v.get("matchedBy") or [])
     prominence = "featured" if {"transcript", "visual"} & matched else "background" if matched else "none"
     return {"hook": hook, "hookType": "question" if hook.endswith("?") else "other",
-            "productProminence": prominence, "sentiment": sentiment, "claims": [], "signalsSource": "heuristic"}
+            "productProminence": prominence, "sentiment": sentiment, "claims": [], "audience": None,
+            "signalsSource": "heuristic"}
 
 
 def _gmi_signals(v, brand):
@@ -170,7 +193,7 @@ def signals_one(v, brand, backend):
 def add_signals(videos, brand, backend=None, workers=16):
     backend = backend or pick_signals_backend()
     cache = _load_cache()
-    key = lambda v: f"{backend}:{v['id']}"  # noqa: E731
+    key = lambda v: f"{backend}:v2:{v['id']}"  # noqa: E731 - v2: signals gained `audience`
     todo = [v for v in videos if key(v) not in cache]
 
     def run(v):
@@ -307,10 +330,181 @@ def campaign_insights(board, backend=None):
     return rule_insights(board)
 
 
+def _mean(vals):
+    vals = [v for v in vals if v is not None]
+    return round(sum(vals) / len(vals), 3) if vals else None
+
+
+def rollup_audience(board):
+    """Copy each video's audience read to `sentiment` and average it per creator and campaign."""
+    videos = [{**v, "sentiment": (v.get("signals") or {}).get("audience")} for v in board["videos"]]
+    creators = []
+    for c in board["creators"]:
+        keys = {(p, h.lower()) for p, h in c["handles"].items()}
+        mine = [v["sentiment"] for v in videos if v["sentiment"] and (v["platform"], v["creatorHandle"].lower()) in keys]
+        creators.append({**c, "sentimentScore": _mean(s["score"] for s in mine),
+                         "purchaseIntent": _mean(s["purchaseIntent"] for s in mine)})
+    avg = _mean(v["sentiment"]["score"] for v in videos if v["sentiment"])
+    return {**board, "videos": videos, "creators": creators, "totals": {**board["totals"], "avgSentiment": avg}}
+
+
 def add_insights(board):
     load_env()  # keys added after the server started still get picked up
-    board = {**board, "videos": add_signals(board["videos"], board["campaign"]["brandName"])}
+    board = rollup_audience({**board, "videos": add_signals(board["videos"], board["campaign"]["brandName"])})
     return {**board, "insights": campaign_insights(board)}
+
+
+# ---- on demand: next brief, outreach drafts, ask, sample video ----------------------------------
+
+BRIEF_SYSTEM = """You are a senior creative strategist at an agency running a UGC creator campaign. From the campaign data, write the NEXT creator brief that doubles down on what worked. Be specific and evidence-based: cite numbers from the data, never invent them.
+Return only a JSON object: {"headline": "at most 10 words", "format": "the winning format", "why": ["3 evidence bullets"], "hook": "the exact first line the creator should say", "mustDo": ["3 or 4 bullets"], "avoid": ["2 or 3 bullets"], "shotList": ["5 short shots with seconds, e.g. 0-2s: ..."], "videoPrompt": "a vivid 9:16 text-to-video prompt (at most 600 characters) for an 8s sample UGC clip in this format: the creator, setting, lighting, camera moves and product moment; no on-screen text, no logos"}"""
+
+DRAFT_SYSTEM = """You are a warm, concise influencer-campaign manager at an agency. Write a short DM or email (at most 110 words) to a UGC creator.
+nudge = they haven't posted for the campaign yet: friendly reminder, restate the one key ask from the brief, suggest the winning format, offer help.
+rehire = they overperformed: celebrate a specific number, propose a follow-up collab.
+recruit = they are not on the roster but posted about the brand on their own and it did well: compliment the specific video, propose a paid collab.
+keep = thank them and suggest one concrete improvement.
+No hashtags, at most one emoji. Return only a JSON object {"subject": "...", "body": "..."}"""
+
+ASK_SYSTEM = ("You are a sharp campaign analyst. Answer the agency's question using ONLY the JSON data. "
+              "Be concise (at most 120 words), lead with the answer, cite creators and numbers. Use markdown bullets when listing.")
+
+
+class NextBrief(BaseModel):
+    headline: str
+    format: str
+    why: list[str]
+    hook: str
+    mustDo: list[str]
+    avoid: list[str]
+    shotList: list[str]
+    videoPrompt: str
+
+
+class Draft(BaseModel):
+    subject: str
+    body: str
+
+
+def _brief_context(board):
+    pct = lambda x: None if x is None else f"{round(x)}%"  # noqa: E731
+    return {
+        "brand": board["campaign"]["brandName"], "currentBrief": board["campaign"].get("brief"),
+        "totals": board["totals"],
+        "formats": [{"format": f["format"], "videos": f["videos"], "avgViewsPerFollower": pct(f["avgViewsPerFollowerPct"]),
+                     "avgEngagement": pct(f["avgEngagementPerViewPct"]), "winner": f["winner"]} for f in board["formats"]],
+        "topVideos": [{"format": v.get("format"), "views": v.get("views"), "viewsPerFollower": pct(v.get("viewsPerFollowerPct")),
+                       "firstBrandMentionSec": v.get("firstMentionSeconds"), "tagged": v.get("tagged"),
+                       "caption": (v.get("caption") or "")[:200], "transcriptStart": (v.get("transcript") or "")[:300],
+                       **{k: (v.get("signals") or {}).get(k) for k in ("hook", "hookType", "claims")},
+                       "audience": (v.get("sentiment") or {}).get("summary")}
+                      for v in board["videos"] if v.get("views") is not None][:6],
+        "strategistNotes": board.get("insights"),
+    }
+
+
+def rule_brief(board):
+    """No-model next brief, built from the board's rule insights and top videos."""
+    ins = board.get("insights") or rule_insights(board)
+    win = next((f for f in board["formats"] if f["winner"]), None)
+    fmt = win["format"].replace("_", " ") if win else "open"
+    brand = board["campaign"]["brandName"]
+    hooks = [v["signals"]["hook"] for v in board["videos"][:3] if (v.get("signals") or {}).get("hook")]
+    return {
+        "headline": f"More {fmt} videos, brand up front" if win else f"Test formats, say {brand} early",
+        "format": win["format"] if win else "other",
+        "why": [a["detail"] for a in ins["actions"] if a["kind"] in ("brief", "watch", "rehire")][:3],
+        "hook": hooks[0] if hooks else f"Okay, I need to talk about {brand}.",
+        "mustDo": [f"Say or show {brand} in the first 3 seconds", "Tag the brand in the caption",
+                   "Show the product in hand, in natural light"],
+        "avoid": ["Burying the product after 30 seconds", "Posting without the brand tag"],
+        "shotList": ["0-2s: hook to camera", "2-5s: product reveal", "5-15s: use it on camera",
+                     "15-25s: honest reaction", "25-30s: where to get it"],
+        "videoPrompt": f"Vertical 9:16 UGC clip: a creator in a bright bedroom, natural window light, handheld phone camera, "
+                       f"films a {fmt} video, lifts a {brand} product toward the lens and smiles, close-up of the product in hand.",
+        "briefSource": "rules",
+    }
+
+
+def next_brief(board):
+    if os.environ.get("GMI_API_KEY"):
+        try:
+            reply = _gmi_chat(BRIEF_SYSTEM, json.dumps(_brief_context(board), ensure_ascii=False),
+                              max_tokens=1800, model=GMI_INSIGHTS_MODEL)
+            return {**NextBrief.model_validate(_parse_json(reply)).model_dump(), "briefSource": "gmi",
+                    "briefModel": GMI_INSIGHTS_MODEL}
+        except Exception as e:  # noqa: BLE001 - fall back to the rule brief
+            print(f"brief: gmi: {type(e).__name__}: {e}; using rules")
+    return rule_brief(board)
+
+
+def _creator_videos(board, creator):
+    keys = {(p, h.lower()) for p, h in creator["handles"].items()}
+    return [v for v in board["videos"] if (v["platform"], v["creatorHandle"].lower()) in keys]
+
+
+def rule_draft(board, creator):
+    first = creator["name"].lstrip("@").split(" ")[0]
+    brand = board["campaign"]["brandName"]
+    kind = creator.get("recommendation", "keep")
+    body = {
+        "nudge": f"Hey {first}! Quick check-in on the {brand} campaign: we haven't seen a post yet. "
+                 f"Anything you need from us to get it live this week?",
+        "rehire": f"Hey {first}! Your {brand} video crushed it, way past your follower count. "
+                  f"We'd love to book you for the next drop. Interested?",
+        "recruit": f"Hey {first}! We loved your {brand} video, it reached way past your follower count. "
+                   f"We run {brand}'s creator program and would love to work with you on the next drop. Open to a paid collab?",
+    }.get(kind, f"Hey {first}! Thanks for your {brand} video. We'd love to keep working together.")
+    return {"subject": f"{brand} x {first}", "body": body, "draftSource": "rules"}
+
+
+def draft_message(board, creator):
+    if os.environ.get("GMI_API_KEY"):
+        win = next((f["format"] for f in board["formats"] if f["winner"]), None)
+        ctx = {"brand": board["campaign"]["brandName"], "brief": board["campaign"].get("brief"),
+               "window": board["campaign"]["window"], "winningFormat": win,
+               "creator": {k: creator.get(k) for k in ("name", "status", "recommendation", "views",
+                                                       "bestViewsPerFollowerPct", "offBriefPosts", "sentimentScore")},
+               "theirVideos": [{"format": v.get("format"), "views": v.get("views"), "caption": (v.get("caption") or "")[:160],
+                                "hook": (v.get("signals") or {}).get("hook"),
+                                "audience": (v.get("sentiment") or {}).get("summary")}
+                               for v in _creator_videos(board, creator)[:3]]}
+        try:
+            reply = _gmi_chat(DRAFT_SYSTEM, json.dumps(ctx, ensure_ascii=False), max_tokens=600, temperature=0.6)
+            return {**Draft.model_validate(_parse_json(reply)).model_dump(), "draftSource": "gmi"}
+        except Exception as e:  # noqa: BLE001 - fall back to the template
+            print(f"draft: gmi: {type(e).__name__}: {e}; using template")
+    return rule_draft(board, creator)
+
+
+def ask_board(board, question):
+    slim = {
+        "campaign": board["campaign"], "totals": board["totals"], "insights": board.get("insights"),
+        "creators": board["creators"], "formats": board["formats"],
+        "videos": [{"creator": v["creatorHandle"], "platform": v["platform"], "date": v["publishedAt"][:10],
+                    "format": v.get("format"), "views": v.get("views"), "vpf": v.get("viewsPerFollowerPct"),
+                    "eng": v.get("engagementPerViewPct"), "tagged": v.get("tagged"), "matchedBy": v.get("matchedBy"),
+                    "firstMentionSec": v.get("firstMentionSeconds"), "hook": (v.get("signals") or {}).get("hook"),
+                    "audience": (v.get("sentiment") or {}).get("summary")} for v in board["videos"]],
+    }
+    if not os.environ.get("GMI_API_KEY"):
+        raise RuntimeError("Asking questions needs GMI_API_KEY in .env")
+    return _gmi_chat(ASK_SYSTEM, f"DATA:\n{json.dumps(slim, ensure_ascii=False)}\n\nQUESTION: {question}",
+                     max_tokens=800, model=GMI_INSIGHTS_MODEL)
+
+
+def submit_sample_video(prompt):
+    """Queue an 8s vertical clip of the brief on GMI's request queue."""
+    return _gmi_request(f"{GMI_QUEUE_URL}/requests", {"model": GMI_VIDEO_MODEL, "payload": {
+        "prompt": prompt, "aspect_ratio": "9:16", "duration": "8", "resolution": "720p"}})
+
+
+def sample_video_status(request_id):
+    r = _gmi_request(f"{GMI_QUEUE_URL}/requests/{urllib.parse.quote(request_id)}")
+    o = r.get("outcome") or {}
+    # Models disagree on the outcome shape (Veo: video_url, Kling: media_urls[].url).
+    url = o.get("video_url") or (o.get("media_urls") or [{}])[0].get("url") or (o.get("videos") or [{}])[0].get("url")
+    return {"status": r.get("status"), "videoUrl": url}
 
 
 if __name__ == "__main__":

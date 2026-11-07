@@ -1,4 +1,5 @@
 """Part 3: campaign.json + videos.labeled.json -> board.json. Pure functions, no API calls."""
+import time
 from statistics import mean, median
 
 UNCLASSIFIED = "unclassified"
@@ -27,6 +28,7 @@ def in_window(video, window):
 
 def build_totals(videos, creators):
     untagged = [v for v in videos if not v.get("tagged")]
+    mentioned = [v for v in videos if v.get("firstMentionSeconds") is not None]
     return {
         "videos": len(videos),
         "views": _sum(v.get("views") for v in videos),
@@ -38,6 +40,10 @@ def build_totals(videos, creators):
         "creatorsDiscovered": sum(bool(c.get("discovered")) for c in creators),
         "untaggedVideos": len(untagged),
         "untaggedViews": _sum(v.get("views") for v in untagged),
+        "avgEngagementPerViewPct": _avg(v.get("engagementPerViewPct") for v in videos),
+        # Share of videos that say or show the brand in the first 3 seconds, of those where we found the moment.
+        "earlyMentionPct": round(100 * sum(v["firstMentionSeconds"] <= 3 for v in mentioned) / len(mentioned), 1)
+        if mentioned else None,
     }
 
 
@@ -53,7 +59,16 @@ def discovered_creators(campaign, videos):
     return list(found.values())
 
 
-def build_creators(campaign, videos):
+def build_timeline(videos):
+    days = {}
+    for v in videos:
+        d = days.setdefault(v["publishedAt"][:10], {"views": 0, "videos": 0})
+        d["views"] += v.get("views") or 0
+        d["videos"] += 1
+    return [{"date": d, **e} for d, e in sorted(days.items())]
+
+
+def build_creators(campaign, videos, activity=None):
     out = []
     for c in [*(campaign.get("creators") or []), *discovered_creators(campaign, videos)]:
         keys = {(p, h.lower()) for p, h in c["handles"].items()}
@@ -83,6 +98,11 @@ def build_creators(campaign, videos):
             "lastPostedAt": max((v["publishedAt"] for v in mine), default=None),
             "overperformer": overperformer,
             "recommendation": recommendation,
+            "profilePictureUrl": next((v["profilePictureUrl"] for v in mine if v.get("profilePictureUrl")), None),
+            "avgEngagementPerViewPct": _avg(v.get("engagementPerViewPct") for v in mine),
+            "avgFirstMentionSeconds": _avg(v.get("firstMentionSeconds") for v in mine),
+            # Posts in the window that never mention the brand (needs the fetch's activity counts).
+            "offBriefPosts": max(0, sum((activity or {}).get(f"{p}:{h}", 0) for p, h in keys) - len(mine)),
         })
     out.sort(key=lambda c: (c["status"] != "posted", c["discovered"], -c["views"]))
     return out
@@ -114,7 +134,10 @@ def build_board(campaign, labeled):
     videos = [dict(v, format=v.get("format") or UNCLASSIFIED)
               for v in labeled["videos"] if in_window(v, window)]
     videos.sort(key=lambda v: -(v.get("views") or 0))
-    creators = build_creators(campaign, videos)
+    names = {(p, h.lower()): c["name"] for c in campaign.get("creators") or [] for p, h in c["handles"].items()}
+    for v in videos:
+        v["creatorName"] = names.get((v["platform"], v["creatorHandle"].lower()))
+    creators = build_creators(campaign, videos, labeled.get("activity"))
     return {
         "campaign": {"id": campaign["id"], "brandName": campaign["brand"]["name"],
                      "handles": campaign["brand"].get("handles", {}),
@@ -123,6 +146,8 @@ def build_board(campaign, labeled):
         "totals": {**build_totals(videos, creators), "droppedOffBrand": labeled.get("droppedOffBrand", 0)},
         "creators": creators,
         "formats": build_formats(videos),
+        "timeline": build_timeline(videos),
+        "generatedAt": int(time.time() * 1000),
         "videos": videos,
     }
 
