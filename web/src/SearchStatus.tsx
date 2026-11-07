@@ -3,7 +3,7 @@ import type { SearchMetadata, Video } from "./types";
 export function SearchStatus({ search, candidates = [] }: { search?: SearchMetadata; candidates?: Video[] }) {
   if (!search?.algorithm && !candidates.length) return null;
   return (
-    <div className="mb-6 rounded-xl bg-white/[0.04] ring-1 ring-white/10 p-4 text-sm text-soft space-y-2" role="status">
+    <div className="mb-6 rounded-[16px] surface p-4 text-sm text-soft space-y-2" role="status">
       <p>Ranked campaign matches · totals include selected, accepted videos only.</p>
       {search?.partial && <p className="text-amber">Search coverage is partial. More matching videos may exist in pages we could not retrieve.</p>}
       {search?.rosterComplete === false && <p className="text-amber">Roster coverage is incomplete. Missing creators remain unknown and recommendations are withheld.</p>}
@@ -16,7 +16,7 @@ export function SearchStatus({ search, candidates = [] }: { search?: SearchMetad
 export function CandidateList({ candidates }: { candidates: Video[] }) {
   if (!candidates.length) return null;
   return (
-    <details className="mt-6 rounded-xl bg-white/[0.03] ring-1 ring-white/10 p-4">
+    <details className="mt-6 rounded-[16px] surface p-4">
       <summary className="cursor-pointer text-sm text-amber">Needs review · {candidates.length} candidates excluded from totals</summary>
       <div className="mt-4 space-y-3 max-h-96 overflow-y-auto">
         {candidates.map((v) => (

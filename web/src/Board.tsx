@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUpRight, Bell, CalendarDays, Crown, Eye, Film, Heart, MessageCircle, RefreshCw, Send, Sparkles, Telescope, UserPlus, Users, Wand2, X } from "lucide-react";
+import { ArrowUp, ArrowUpRight, Bell, Crown, Eye, Film, Heart, MessageCircle, RefreshCw, Sparkles, Telescope, UserPlus, Users, Wand2, X } from "lucide-react";
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import Brief from "./Brief";
@@ -32,29 +32,35 @@ export default function Board({ board, onHome, onRerun }: { board: BoardT; onHom
 
   return (
     <div className="min-h-dvh pb-32">
-      <header className="sticky top-0 z-40 border-b border-line bg-ink/75 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 flex items-center gap-4 h-16">
-          <Logo onClick={onHome} />
-          <div className="hidden md:flex items-center gap-2 text-sm text-mute border-l border-line pl-4">
-            <span className="text-white font-medium">{board.campaign.brandName}</span>
-            <CalendarDays size={14} />
-            {date(board.campaign.window.start)} – {date(board.campaign.window.end)}
+      <header className="sticky top-3 z-40 mx-auto max-w-7xl px-3 sm:px-4">
+        <div className="glass glass-blur rounded-full flex justify-between md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-4 h-14 pl-4 pr-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <Logo onClick={onHome} />
+            <div className="hidden lg:block text-[13px] text-mute truncate">
+              {board.campaign.brandName} · {date(board.campaign.window.start)} – {date(board.campaign.window.end)}
+            </div>
           </div>
-          <div className="ml-auto flex items-center gap-1">
-            <Button variant="ghost" className="!px-3 !py-2 text-xs" onClick={onRerun}><RefreshCw size={14} /> <span className="hidden sm:inline">Refresh</span></Button>
+          <nav role="tablist" className="hidden md:flex rounded-full bg-black/20 p-1 shadow-[inset_0_1px_2px_rgb(0_0_0/0.3)]">
+            {TABS.map((t) => (
+              <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className={cx("relative px-4 py-1.5 text-[13px] whitespace-nowrap cursor-pointer rounded-full", tab === t.key ? "text-fg font-medium" : "text-soft hover:text-fg")}>
+                {tab === t.key && <motion.div layoutId="tab" transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }} className="absolute inset-0 rounded-full bg-white/18 shadow-[inset_0_1px_0.5px_rgb(255_255_255/0.4),inset_0_0_0_0.5px_rgb(255_255_255/0.2)]" />}
+                <span className="relative">{t.label}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="flex justify-end">
+            <Button variant="ghost" className="!px-3 !py-1.5 !text-[13px]" onClick={onRerun}><RefreshCw size={14} /> <span className="hidden sm:inline">Refresh</span></Button>
           </div>
         </div>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 flex gap-1 overflow-x-auto scroll-thin">
+        {/* Compact screens: a scrolling row of the same tabs. */}
+        <div className="md:hidden flex gap-1.5 overflow-x-auto [scrollbar-width:none] pt-2 px-1">
           {TABS.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={cx("relative flex items-center gap-2 px-3.5 py-3 text-sm whitespace-nowrap transition cursor-pointer", tab === t.key ? "text-white" : "text-mute hover:text-soft")}>
-              <t.icon size={15} /> {t.label}
-              {tab === t.key && <motion.div layoutId="tab" className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-rose to-violet" />}
-            </button>
+            <button key={t.key} onClick={() => setTab(t.key)} className={cx("shrink-0 rounded-full px-3 py-1 text-[13px] cursor-pointer", tab === t.key ? "glass text-fg font-medium" : "bg-black/50 text-soft")}>{t.label}</button>
           ))}
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-8">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-10">
         <SearchStatus search={board.search} candidates={board.candidates} />
         <AnimatePresence mode="wait">
           <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
@@ -84,31 +90,29 @@ function Overview({ board, setTab, goVideos }: { board: BoardT; setTab: (t: Tab)
   return (
     <div className="space-y-6">
       {/* Headline */}
-      <Card className="p-6 sm:p-8 relative overflow-hidden">
-        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-rose/20 blur-3xl" />
-        <div className="absolute right-40 -bottom-32 h-72 w-72 rounded-full bg-violet/20 blur-3xl" />
-        <div className="relative">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-mute mb-3">Campaign pulse</div>
-          <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight leading-tight max-w-4xl">
-            <span className="grad-text"><CountUp value={t.views} format={(n) => compact(n)} /></span> views from {t.videos} videos.{" "}
+      <section className="pt-2 pb-2">
+        <div>
+          <div className="text-[13px] font-medium text-mute mb-2">{board.campaign.brandName} · {date(board.campaign.window.start)} – {date(board.campaign.window.end)}</div>
+          <h1 className="text-[28px] sm:text-[40px] font-semibold tracking-[-0.03em] leading-[1.1] max-w-4xl [text-shadow:0_2px_24px_rgb(0_0_0/0.5)]">
+            <CountUp value={t.views} format={(n) => compact(n)} /> views from {t.videos} videos.{" "}
             {t.untaggedVideos > 0 && (
-              <>
-                <span className="font-serif italic font-normal text-amber">{pct(untaggedShare)}</span> of them came from{" "}
-                <button className="underline decoration-white/25 underline-offset-[6px] hover:decoration-amber cursor-pointer" onClick={() => goVideos({ untagged: true })}>
+              <span className="text-white/55">
+                {pct(untaggedShare)} came from{" "}
+                <button className="text-accent hover:underline underline-offset-4 decoration-2 cursor-pointer" onClick={() => goVideos({ untagged: true })}>
                   {t.untaggedVideos} videos that never tagged you
                 </button>
                 .
-              </>
+              </span>
             )}
           </h1>
           {win && (
-            <p className="mt-4 text-soft text-base sm:text-lg max-w-3xl">
-              <FormatChip format={win.format} /> is the best format in these results: on average its videos reached <b className="text-white">{mult(win.avgViewsPerFollowerPct)}</b> each creator's follower count.{" "}
-              <button className="text-white underline underline-offset-4 decoration-rose/60 cursor-pointer" onClick={() => setTab("brief")}>Brief more of these →</button>
+            <p className="mt-4 text-soft text-[17px] leading-relaxed max-w-3xl">
+              <FormatChip format={win.format} /> is the best format in these results: on average its videos reached <b className="text-fg font-semibold">{mult(win.avgViewsPerFollowerPct)}</b> each creator's follower count.{" "}
+              <button className="text-accent hover:underline underline-offset-4 cursor-pointer" onClick={() => setTab("brief")}>Brief more of these</button>
             </p>
           )}
         </div>
-      </Card>
+      </section>
 
       {board.insights && <InsightsCard board={board} setTab={setTab} />}
 
@@ -135,17 +139,17 @@ function Overview({ board, setTab, goVideos }: { board: BoardT; setTab: (t: Tab)
 
       <div className="grid md:grid-cols-2 gap-6">
         <Card className="p-5 sm:p-6" delay={0.2}>
-          <SectionTitle eyebrow="Rehire" title={<span className="flex items-center gap-2"><Crown size={18} className="text-amber" /> Punched above their follower count</span>} right={<Button variant="ghost" className="!py-1.5 text-xs" onClick={() => setTab("creators")}>All creators <ArrowUpRight size={14} /></Button>} />
+          <SectionTitle eyebrow="Rehire" title={<span className="flex items-center gap-2">Punched above their follower count</span>} right={<Button variant="ghost" className="!py-1.5 text-xs" onClick={() => setTab("creators")}>All creators <ArrowUpRight size={14} /></Button>} />
           <div className="space-y-2">
             {rehire.slice(0, 5).map((c) => (
-              <button key={c.name} onClick={() => goVideos({ creator: c.name })} className="w-full flex items-center gap-3 rounded-xl p-2 hover:bg-white/[0.04] transition text-left cursor-pointer">
-                <Avatar src={c.profilePictureUrl} name={c.name} ring="linear-gradient(135deg,#ffb547,#ff4d8d)" />
+              <button key={c.name} onClick={() => goVideos({ creator: c.name })} className="w-full flex items-center gap-3 rounded-xl p-2 hover:bg-fill transition text-left cursor-pointer">
+                <Avatar src={c.profilePictureUrl} name={c.name} />
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium truncate">{c.name}</div>
                   <div className="text-xs text-mute">{compact(c.followers)} followers · {c.videos} video{c.videos === 1 ? "" : "s"}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-semibold font-mono">{mult(c.bestViewsPerFollowerPct)}</div>
+                  <div className="text-sm font-semibold tabular-nums">{mult(c.bestViewsPerFollowerPct)}</div>
                   <div className="text-[11px] text-mute">their followers</div>
                 </div>
               </button>
@@ -154,7 +158,7 @@ function Overview({ board, setTab, goVideos }: { board: BoardT; setTab: (t: Tab)
           </div>
         </Card>
         <Card className="p-5 sm:p-6" delay={0.25}>
-          <SectionTitle eyebrow="Nudge" title={<span className="flex items-center gap-2"><Bell size={18} className="text-rose" /> Went quiet</span>} right={<Button variant="ghost" className="!py-1.5 text-xs" onClick={() => setTab("discover")}>Find replacements <ArrowUpRight size={14} /></Button>} />
+          <SectionTitle eyebrow="Nudge" title={<span className="flex items-center gap-2">Went quiet</span>} right={<Button variant="ghost" className="!py-1.5 text-xs" onClick={() => setTab("discover")}>Find replacements <ArrowUpRight size={14} /></Button>} />
           <div className="space-y-2">
             {nudge.map((c) => (
               <div key={c.name} className="flex items-center gap-3 rounded-xl p-2">
@@ -167,7 +171,7 @@ function Overview({ board, setTab, goVideos }: { board: BoardT; setTab: (t: Tab)
                 </div>
               </div>
             ))}
-            {!nudge.length && <div className="text-sm text-mute py-4">{board.creators.some((c) => c.status === "unknown") ? "Some creators remain unknown; check search coverage and candidates." : t.creatorsTotal ? "Everyone on the roster posted. 🎉" : "No hired creators on this roster."}</div>}
+            {!nudge.length && <div className="text-sm text-mute py-4">{board.creators.some((c) => c.status === "unknown") ? "Some creators remain unknown; check search coverage and candidates." : t.creatorsTotal ? "Everyone on the roster posted." : "No hired creators on this roster."}</div>}
           </div>
         </Card>
       </div>
@@ -176,13 +180,13 @@ function Overview({ board, setTab, goVideos }: { board: BoardT; setTab: (t: Tab)
         <SectionTitle eyebrow="Top videos" title="What's carrying the campaign" right={<Button variant="ghost" className="!py-1.5 text-xs" onClick={() => setTab("videos")}>All videos <ArrowUpRight size={14} /></Button>} />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {top.map((v, i) => (
-            <motion.a key={v.id} href={v.url ?? undefined} target="_blank" rel="noreferrer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 + i * 0.05 }} className="group relative aspect-[9/16] rounded-xl overflow-hidden bg-panel-2 ring-1 ring-white/10">
+            <motion.a key={v.id} href={v.url ?? undefined} target="_blank" rel="noreferrer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 + i * 0.05 }} className="group relative aspect-[9/16] rounded-xl overflow-hidden bg-panel-2">
               {v.thumbnailUrl && <img src={v.thumbnailUrl} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" alt="" />}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
-              <div className="absolute top-2 left-2"><FormatChip format={v.format} size="xs" /></div>
-              <div className="absolute bottom-0 inset-x-0 p-2.5">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+              <div className="absolute top-2 left-2"><FormatChip format={v.format} size="xs" onMedia /></div>
+              <div className="absolute bottom-0 inset-x-0 p-2.5 text-white">
                 <div className="text-lg font-semibold leading-none">{compact(v.views)}</div>
-                <div className="text-[11px] text-soft/80 truncate mt-1">@{v.creatorHandle}</div>
+                <div className="text-[11px] text-white/75 truncate mt-1">@{v.creatorHandle}</div>
               </div>
             </motion.a>
           ))}
@@ -193,11 +197,11 @@ function Overview({ board, setTab, goVideos }: { board: BoardT; setTab: (t: Tab)
 }
 
 const ACTION_META: Record<InsightAction["kind"], { label: string; icon: typeof Eye; cls: string; tab: Tab }> = {
-  brief: { label: "Brief", icon: Wand2, cls: "bg-violet/15 text-violet ring-violet/30", tab: "brief" },
-  rehire: { label: "Rehire", icon: Crown, cls: "bg-amber/15 text-amber ring-amber/30", tab: "creators" },
-  recruit: { label: "Recruit", icon: UserPlus, cls: "bg-mint/15 text-mint ring-mint/30", tab: "discover" },
-  nudge: { label: "Nudge", icon: Bell, cls: "bg-rose/15 text-rose ring-rose/30", tab: "creators" },
-  watch: { label: "Watch", icon: Eye, cls: "bg-white/[0.06] text-soft ring-white/15", tab: "videos" },
+  brief: { label: "Brief", icon: Wand2, cls: "bg-violet/12 text-violet", tab: "brief" },
+  rehire: { label: "Rehire", icon: Crown, cls: "bg-amber/12 text-amber", tab: "creators" },
+  recruit: { label: "Recruit", icon: UserPlus, cls: "bg-mint/12 text-mint", tab: "discover" },
+  nudge: { label: "Nudge", icon: Bell, cls: "bg-rose/12 text-rose", tab: "creators" },
+  watch: { label: "Watch", icon: Eye, cls: "bg-fill text-soft", tab: "videos" },
 };
 const SOURCE = { claude: "Claude", gmi: "GMI Cloud", rules: "board rules" } as const;
 
@@ -206,20 +210,20 @@ function InsightsCard({ board, setTab }: { board: BoardT; setTab: (t: Tab) => vo
   const ins = board.insights!;
   const model = ins.insightsModel?.split("/").pop();
   return (
-    <Card className="p-5 sm:p-6 grad-border" delay={0.05}>
+    <Card className="p-5 sm:p-6" delay={0.05}>
       <SectionTitle
         eyebrow="What to do next"
-        title={<span className="flex items-start gap-2"><Sparkles size={18} className="text-rose shrink-0 mt-1" /> {ins.headline}</span>}
+        title={ins.headline}
       />
       <div className="grid sm:grid-cols-2 gap-2">
         {ins.actions.map((a, i) => {
           const m = ACTION_META[a.kind] ?? ACTION_META.watch;
           return (
             <motion.button key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05 }} onClick={() => setTab(m.tab)}
-              className="flex gap-3 rounded-xl p-3 text-left bg-white/[0.02] ring-1 ring-white/[0.06] hover:bg-white/[0.05] transition cursor-pointer">
-              <span className={cx("inline-flex h-fit items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium ring-1 ring-inset shrink-0", m.cls)}><m.icon size={12} /> {m.label}</span>
+              className="flex gap-3 rounded-[12px] p-3 text-left bg-fill hover:bg-fill-2 transition cursor-pointer">
+              <span className={cx("inline-flex h-fit items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium shrink-0", m.cls)}><m.icon size={12} /> {m.label}</span>
               <span className="min-w-0">
-                <span className="block text-sm font-medium text-white">{a.title}</span>
+                <span className="block text-sm font-medium text-fg">{a.title}</span>
                 <span className="block text-xs text-mute mt-0.5 leading-relaxed">{a.detail}</span>
               </span>
             </motion.button>
@@ -233,9 +237,9 @@ function InsightsCard({ board, setTab }: { board: BoardT; setTab: (t: Tab) => vo
 
 function Stat({ icon: Icon, label, value, fmt, accent, delay }: { icon: typeof Eye; label: string; value: number; fmt: (n: number) => string; accent?: boolean; delay?: number }) {
   return (
-    <Card className={cx("p-4", accent && "grad-border")} delay={delay}>
-      <div className="flex items-center gap-1.5 text-xs text-mute"><Icon size={13} /> {label}</div>
-      <div className={cx("mt-2 text-2xl font-semibold tracking-tight font-mono", accent && "grad-text")}>
+    <Card className="p-4" delay={delay}>
+      <div className="flex items-center gap-1.5 text-[13px] text-mute"><Icon size={13} /> {label}</div>
+      <div className={cx("mt-1.5 text-[24px] font-semibold tracking-[-0.02em] tabular-nums", accent && "text-amber")}>
         <CountUp value={value} format={fmt} />
       </div>
     </Card>
@@ -249,26 +253,26 @@ function Timeline({ data }: { data: BoardT["timeline"] }) {
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="viewsFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#d55181" stopOpacity={0.45} />
-              <stop offset="100%" stopColor="#d55181" stopOpacity={0} />
+              <stop offset="0%" stopColor="var(--blue)" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="var(--blue)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="rgb(255 255 255 / 0.06)" />
-          <XAxis dataKey="date" tickFormatter={(d) => date(d)} tick={{ fill: "#8b8b9e", fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={24} />
-          <YAxis tickFormatter={(n) => compact(n)} tick={{ fill: "#8b8b9e", fontSize: 11 }} axisLine={false} tickLine={false} width={44} />
+          <CartesianGrid vertical={false} stroke="var(--separator)" />
+          <XAxis dataKey="date" tickFormatter={(d) => date(d)} tick={{ fill: "var(--label-3)", fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={24} />
+          <YAxis tickFormatter={(n) => compact(n)} tick={{ fill: "var(--label-3)", fontSize: 11 }} axisLine={false} tickLine={false} width={44} />
           <Tooltip
-            cursor={{ stroke: "rgb(255 255 255 / 0.25)", strokeWidth: 1 }}
+            cursor={{ stroke: "var(--separator)", strokeWidth: 1 }}
             content={({ active, payload }) =>
               active && payload?.[0] ? (
-                <div className="rounded-lg bg-panel-2/95 ring-1 ring-white/10 px-3 py-2 text-xs shadow-xl">
+                <div className="rounded-[14px] glass-sheet px-3 py-2 text-xs">
                   <div className="text-mute mb-0.5">{date(payload[0].payload.date)}</div>
-                  <div className="font-mono text-white">{compact(payload[0].payload.views)} views</div>
+                  <div className="tabular-nums text-fg">{compact(payload[0].payload.views)} views</div>
                   <div className="text-mute">{payload[0].payload.videos} video{payload[0].payload.videos === 1 ? "" : "s"} published</div>
                 </div>
               ) : null
             }
           />
-          <Area type="monotone" dataKey="views" stroke="#d55181" strokeWidth={2} fill="url(#viewsFill)" dot={{ r: 4, fill: "#d55181", stroke: "#0e0e15", strokeWidth: 2 }} activeDot={{ r: 5, stroke: "#0e0e15", strokeWidth: 2 }} />
+          <Area type="monotone" dataKey="views" stroke="var(--blue)" strokeWidth={2} fill="url(#viewsFill)" dot={false} activeDot={{ r: 4, fill: "var(--blue)", stroke: "var(--bg-elevated)", strokeWidth: 2 }} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -290,17 +294,17 @@ function FormatBars({ board }: { board: BoardT }) {
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="flex items-center gap-1.5 text-soft">
                 {m.label}
-                {f.winner && <span className="inline-flex items-center gap-1 rounded-full bg-amber/15 px-1.5 py-px text-[10px] font-semibold text-amber ring-1 ring-amber/30"><Crown size={10} /> WINNER</span>}
+                {f.winner && <span className="inline-flex items-center gap-1 rounded-full bg-amber/12 px-1.5 py-px text-[11px] font-medium text-amber">Best</span>}
               </span>
-              <span className="font-mono text-white">{mult(f.avgViewsPerFollowerPct)}</span>
+              <span className="tabular-nums text-fg">{mult(f.avgViewsPerFollowerPct)}</span>
             </div>
-            <div className="h-2.5 rounded-full bg-white/[0.05]">
+            <div className="h-2.5 rounded-full bg-fill">
               <motion.div className="h-full rounded-[4px]" style={{ background: m.color }} initial={{ width: 0 }} animate={{ width: `${Math.max(2, w)}%` }} transition={{ delay: 0.2 + i * 0.06, duration: 0.8, ease: [0.22, 1, 0.36, 1] }} />
             </div>
             <AnimatePresence>
               {hover === f.format && (
-                <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-10 right-0 top-full mt-1 rounded-lg bg-panel-2/95 ring-1 ring-white/10 px-3 py-2 text-xs shadow-xl">
-                  <div className="font-medium text-white mb-0.5">{m.label}</div>
+                <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute z-10 right-0 top-full mt-1 rounded-[14px] glass-sheet px-3 py-2 text-xs">
+                  <div className="font-medium text-fg mb-0.5">{m.label}</div>
                   <div className="text-mute">{f.videos} videos · {compact(f.views)} views · {pct(f.avgEngagementPerViewPct, 1)} engagement</div>
                 </motion.div>
               )}
@@ -329,7 +333,7 @@ function AskBar({ board }: { board: BoardT }) {
       const r = await api.ask(board.campaign.id, question);
       setAnswer({ q: question, a: r.answer });
     } catch (e: unknown) {
-      setAnswer({ q: question, a: `⚠️ ${e instanceof Error ? e.message : String(e)}` });
+      setAnswer({ q: question, a: e instanceof Error ? e.message : String(e) });
     } finally {
       setBusy(false);
       setQ("");
@@ -340,26 +344,25 @@ function AskBar({ board }: { board: BoardT }) {
       <div className="mx-auto max-w-3xl px-4 pb-4 pointer-events-auto">
         <AnimatePresence>
           {answer && (
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} className="mb-2 rounded-2xl bg-panel/95 backdrop-blur-xl ring-1 ring-white/10 p-4 shadow-2xl max-h-[45dvh] overflow-auto scroll-thin">
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} className="mb-2 rounded-[24px] glass-sheet p-4 max-h-[45dvh] overflow-auto scroll-thin">
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="text-xs text-mute">{answer.q}</div>
-                <button className="text-mute hover:text-white cursor-pointer" onClick={() => setAnswer(null)}><X size={15} /></button>
+                <button className="text-mute hover:text-fg cursor-pointer" onClick={() => setAnswer(null)}><X size={15} /></button>
               </div>
               {busy ? <div className="flex items-center gap-2 text-sm text-soft"><Spinner /> Reading the board…</div> : <Markdown text={answer.a} />}
             </motion.div>
           )}
         </AnimatePresence>
         {!answer && (
-          <div className="flex gap-1.5 mb-2 overflow-x-auto scroll-thin">
+          <div className="flex gap-1.5 mb-2 overflow-x-auto [scrollbar-width:none] p-1 -m-1">
             {SUGGESTIONS.map((s) => (
-              <button key={s} onClick={() => ask(s)} className="shrink-0 rounded-full bg-panel/90 backdrop-blur px-3 py-1.5 text-xs text-soft ring-1 ring-white/10 hover:text-white hover:ring-white/25 transition cursor-pointer">{s}</button>
+              <button key={s} onClick={() => ask(s)} className="glass shrink-0 rounded-full px-3.5 py-1.5 text-[13px] text-soft hover:text-fg transition cursor-pointer">{s}</button>
             ))}
           </div>
         )}
-        <form onSubmit={(e) => { e.preventDefault(); ask(q); }} className="grad-border flex items-center gap-2 rounded-2xl bg-panel/90 backdrop-blur-xl p-2 pl-4 shadow-[0_20px_60px_-10px_rgb(0_0_0/0.8)]">
-          <Sparkles size={16} className="text-rose shrink-0" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask anything about this campaign…" className="flex-1 bg-transparent text-sm placeholder:text-mute min-w-0" />
-          <Button type="submit" className="!px-3 !py-2" disabled={busy || !q.trim()}>{busy ? <Spinner /> : <Send size={15} />}</Button>
+        <form onSubmit={(e) => { e.preventDefault(); ask(q); }} className="glass glass-blur flex items-center gap-2 rounded-full p-1.5 pl-5">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask about this campaign" aria-label="Ask about this campaign" className="flex-1 bg-transparent text-[15px] placeholder:text-mute min-w-0" />
+          <Button type="submit" className="!p-0 h-8 w-8" disabled={busy || !q.trim()}>{busy ? <Spinner /> : <ArrowUp size={17} strokeWidth={2.5} />}</Button>
         </form>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Bell, Check, Copy, Crown, Film, Mail, ThumbsUp, UserPlus } from "lucide-react";
+import { Bell, Check, Copy, Crown, Film, ThumbsUp, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { api, compact, cx, date, mult, pct, secs } from "./lib";
 import type { Board, CreatorRow } from "./types";
@@ -20,10 +20,10 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
         eyebrow="Roster"
         title={`${board.totals.creatorsPosted} of ${board.totals.creatorsTotal} creators posted`}
         right={
-          <div className="flex gap-1 rounded-xl bg-white/[0.04] p-1 ring-1 ring-white/[0.06]">
+          <div className="glass flex rounded-full p-1">
             {filters.map((f) => (
-              <button key={f} onClick={() => setFilter(f)} className={cx("relative rounded-lg px-3 py-1.5 text-xs capitalize cursor-pointer transition", filter === f ? "text-white" : "text-mute hover:text-soft")}>
-                {filter === f && <motion.div layoutId="cf" className="absolute inset-0 rounded-lg bg-white/[0.08]" />}
+              <button key={f} onClick={() => setFilter(f)} className={cx("relative rounded-full px-3 py-1 text-[13px] capitalize cursor-pointer", filter === f ? "text-fg font-medium" : "text-soft hover:text-fg")}>
+                {filter === f && <motion.div layoutId="cf" transition={{ duration: 0.25 }} className="absolute inset-0 rounded-full bg-segment shadow-[inset_0_1px_0.5px_rgb(255_255_255/0.35)]" />}
                 <span className="relative">{f} <span className="text-mute">{counts[f]}</span></span>
               </button>
             ))}
@@ -34,7 +34,7 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
         <div className="overflow-x-auto scroll-thin">
           <table className="w-full text-sm min-w-[980px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wider text-mute border-b border-line">
+              <tr className="text-left text-[12px] text-mute border-b border-line">
                 <th className="px-5 py-3 font-medium">Creator</th>
                 <th className="px-3 py-3 font-medium">Status</th>
                 <th className="px-3 py-3 font-medium text-right">Videos</th>
@@ -49,10 +49,10 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
             </thead>
             <tbody>
               {rows.map((c, i) => (
-                <motion.tr key={c.name} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }} className="border-b border-line/60 last:border-0 hover:bg-white/[0.025] transition">
+                <motion.tr key={c.name} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }} className="border-b border-line/60 last:border-0 hover:bg-fill/60 transition">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <Avatar src={c.profilePictureUrl} name={c.name} ring={c.overperformer ? "linear-gradient(135deg,#ffb547,#ff4d8d)" : undefined} />
+                      <Avatar src={c.profilePictureUrl} name={c.name} />
                       <div className="min-w-0">
                         <div className="font-medium flex items-center gap-1.5">{c.name} {c.overperformer && <Crown size={13} className="text-amber" />}</div>
                         <div className="text-xs text-mute truncate">
@@ -62,28 +62,28 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    {c.status === "posted" ? <Pill tone="mint">● Posted</Pill> : c.status === "unknown" ? <Pill tone="amber">? Unknown</Pill> : <Pill tone="rose">○ Quiet</Pill>}
+                    {c.status === "posted" ? <Pill tone="mint">Posted</Pill> : c.status === "unknown" ? <Pill tone="amber">Unknown</Pill> : <Pill tone="neutral">Quiet</Pill>}
                     {c.lastPostedAt && <div className="text-[11px] text-mute mt-1">last {date(c.lastPostedAt)}</div>}
                   </td>
-                  <td className="px-3 py-3 text-right font-mono">{c.videos}</td>
-                  <td className="px-3 py-3 text-right font-mono">{compact(c.views)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{c.videos}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{compact(c.views)}</td>
                   <td className="px-3 py-3 text-right">
-                    <span className={cx("font-mono", c.overperformer ? "text-white font-semibold" : "text-soft")}>{c.status === "quiet" ? "—" : mult(c.bestViewsPerFollowerPct)}</span>
+                    <span className={cx("tabular-nums", c.overperformer ? "text-fg font-semibold" : "text-soft")}>{c.status === "quiet" ? "—" : mult(c.bestViewsPerFollowerPct)}</span>
                     {(c.followers ?? 0) > 0 && <div className="text-[11px] text-mute">{compact(c.followers)} followers</div>}
                   </td>
-                  <td className="px-3 py-3 text-right font-mono text-soft">{pct(c.avgEngagementPerViewPct, 1)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-soft">{pct(c.avgEngagementPerViewPct, 1)}</td>
                   <td className="px-3 py-3">
                     {c.sentimentScore != null ? (
                       <div className="space-y-1.5" title={`Sentiment ${Math.round((c.sentimentScore + 1) * 50)}/100 · purchase intent ${Math.round((c.purchaseIntent ?? 0) * 100)}%`}>
-                        <div className="flex items-center gap-2"><span className="w-12 text-[10px] text-mute">Love</span><Meter value={(c.sentimentScore + 1) / 2} color="#199e70" className="flex-1" /></div>
-                        <div className="flex items-center gap-2"><span className="w-12 text-[10px] text-mute">Want it</span><Meter value={c.purchaseIntent} color="#c98500" className="flex-1" /></div>
+                        <div className="flex items-center gap-2"><span className="w-12 text-[10px] text-mute">Love</span><Meter value={(c.sentimentScore + 1) / 2} color="var(--green)" className="flex-1" /></div>
+                        <div className="flex items-center gap-2"><span className="w-12 text-[10px] text-mute">Want it</span><Meter value={c.purchaseIntent} color="var(--orange)" className="flex-1" /></div>
                       </div>
                     ) : <span className="text-mute text-xs">—</span>}
                   </td>
-                  <td className="px-3 py-3 text-right font-mono text-soft">
+                  <td className="px-3 py-3 text-right tabular-nums text-soft">
                     <span className={cx(c.avgFirstMentionSeconds != null && c.avgFirstMentionSeconds > 30 && "text-rose")}>{secs(c.avgFirstMentionSeconds)}</span>
                   </td>
-                  <td className="px-3 py-3 text-right font-mono text-soft">{c.offBriefPosts || "—"}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-soft">{c.offBriefPosts || "—"}</td>
                   <td className="px-5 py-3">
                     <div className="flex justify-end gap-1.5">
                       {c.videos > 0 && <Button variant="ghost" className="!p-2" onClick={() => goVideos({ creator: c.name })}><Film size={15} /></Button>}
@@ -107,13 +107,13 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
 function RecButton({ c, onClick }: { c: CreatorRow; onClick: () => void }) {
   if (!c.recommendation) return <span className="text-xs text-mute">Needs review</span>;
   const map = {
-    rehire: { label: "Rehire", icon: Crown, cls: "bg-amber/15 text-amber ring-amber/30 hover:bg-amber/25" },
-    recruit: { label: "Recruit", icon: UserPlus, cls: "bg-mint/15 text-mint ring-mint/30 hover:bg-mint/25" },
-    nudge: { label: "Nudge", icon: Bell, cls: "bg-rose/15 text-rose ring-rose/30 hover:bg-rose/25" },
-    keep: { label: "Thank", icon: ThumbsUp, cls: "bg-white/[0.06] text-soft ring-white/15 hover:bg-white/10" },
+    rehire: { label: "Rehire", icon: Crown, cls: "bg-amber/12 text-amber hover:bg-amber/20" },
+    recruit: { label: "Recruit", icon: UserPlus, cls: "bg-mint/12 text-mint hover:bg-mint/20" },
+    nudge: { label: "Nudge", icon: Bell, cls: "bg-rose/12 text-rose hover:bg-rose/20" },
+    keep: { label: "Thank", icon: ThumbsUp, cls: "bg-fill text-fg hover:bg-fill-2" },
   }[c.recommendation];
   return (
-    <button onClick={onClick} className={cx("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium ring-1 ring-inset transition cursor-pointer", map.cls)}>
+    <button onClick={onClick} className={cx("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium transition cursor-pointer", map.cls)}>
       <map.icon size={13} /> {map.label}
     </button>
   );
@@ -137,7 +137,7 @@ function DraftModal({ board, creator, onClose }: { board: Board; creator: Creato
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <Modal open={!!creator} onClose={() => { setForName(null); onClose(); }} title={creator && <span className="flex items-center gap-2"><Mail size={17} className="text-rose" /> {creator.recommendation && { nudge: "Nudge", rehire: "Rehire", recruit: "Recruit", keep: "Thank" }[creator.recommendation]} {creator.name}</span>}>
+    <Modal open={!!creator} onClose={() => { setForName(null); onClose(); }} title={creator && <span>{creator.recommendation && { nudge: "Nudge", rehire: "Rehire", recruit: "Recruit", keep: "Thank" }[creator.recommendation]} {creator.name}</span>}>
       {err ? <div className="text-sm text-rose">{err}</div> : !draft ? (
         <div className="flex items-center gap-2 text-sm text-soft py-8 justify-center"><Spinner /> Drafting from their campaign data…</div>
       ) : (
