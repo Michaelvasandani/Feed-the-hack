@@ -1,4 +1,3 @@
-import { motion } from "motion/react";
 import { Ban, Check, Clapperboard, Copy, Download, RefreshCw, Sparkles, Target } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, type NextBrief } from "./lib";
@@ -77,10 +76,10 @@ export default function Brief({ board }: { board: Board }) {
                 {brief.shotList.map((s, i) => {
                   const [t, ...rest] = s.split(":");
                   return (
-                    <motion.li key={i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }} className="flex gap-3 text-sm">
+                    <li key={i} className="flex gap-3 text-sm">
                       <span className="tabular-nums text-[11px] text-mute w-12 shrink-0 pt-0.5">{rest.length ? t : `#${i + 1}`}</span>
                       <span className="text-soft">{rest.length ? rest.join(":").trim() : s}</span>
-                    </motion.li>
+                    </li>
                   );
                 })}
               </ol>

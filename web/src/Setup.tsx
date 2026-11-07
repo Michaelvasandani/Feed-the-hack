@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from "motion/react";
 import { ChevronRight, Minus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, cx } from "./lib";
@@ -73,8 +72,8 @@ export default function Setup({ onRun, recent, onOpen }: {
 
   return (
     <div className="min-h-dvh">
-      <nav className="sticky top-3 z-40 mx-auto max-w-5xl px-3 sm:px-4">
-        <div className="glass glass-blur rounded-full flex items-center justify-between h-12 pl-4 pr-5">
+      <nav className="sticky top-0 z-40 glass-blur border-b border-line">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 flex items-center justify-between h-14">
           <Logo />
           <div className="hidden sm:block text-[12px] text-mute">Data from Oriane · Models on GMI Cloud</div>
         </div>
@@ -82,18 +81,18 @@ export default function Setup({ onRun, recent, onOpen }: {
 
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <section className="pt-16 sm:pt-24 pb-10 sm:pb-14 text-center">
-          <h1 className="text-[clamp(2.25rem,5.5vw,3.75rem)] font-semibold leading-[1.05] tracking-[-0.035em] [text-shadow:0_2px_24px_rgb(0_0_0/0.5)]">
+          <h1 className="text-[clamp(2.25rem,5.5vw,3.75rem)] font-semibold leading-[1.05] tracking-[-0.035em]">
             Every video about your brand.
             <br />
-            <span className="text-white/55">Including the untagged ones.</span>
+            <span className="text-mute">Including the untagged ones.</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-[17px] sm:text-[19px] leading-relaxed text-white/80 [text-shadow:0_1px_12px_rgb(0_0_0/0.6)]">
+          <p className="mx-auto mt-5 max-w-xl text-[17px] sm:text-[19px] leading-relaxed text-soft">
             Add a brand and a creator roster. Feedboard pulls every TikTok and Reel that shows or says your product, reads each one, and tells you who to rehire, who to nudge and what to brief next.
           </p>
           {thumbs.length > 0 && (
             <div className="mt-10 flex justify-center gap-2 sm:gap-3 overflow-hidden" aria-hidden>
               {thumbs.slice(0, 7).map((u, i) => (
-                <img key={i} src={u} alt="" className={cx("aspect-[9/16] w-16 sm:w-24 rounded-[16px] object-cover bg-panel-2 shadow-[0_12px_40px_rgb(0_0_0/0.5),0_0_0_0.5px_rgb(255_255_255/0.2)]", i > 4 && "hidden sm:block")} />
+                <img key={i} src={u} alt="" decoding="async" className={cx("aspect-[9/16] w-16 sm:w-24 rounded-[10px] object-cover bg-panel-2 ring-1 ring-line", i > 4 && "hidden sm:block")} />
               ))}
             </div>
           )}
@@ -127,23 +126,21 @@ export default function Setup({ onRun, recent, onOpen }: {
 
             <div>
               <div className="flex items-center justify-between mb-1.5 px-4">
-                <div className="text-[13px] text-white/70">Creators{c.creators.length > 0 && ` · ${c.creators.length}`}</div>
+                <div className="text-[13px] text-mute">Creators{c.creators.length > 0 && ` · ${c.creators.length}`}</div>
                 <div className="flex gap-3 text-[13px]">
                   <button className="text-accent hover:underline cursor-pointer" onClick={() => setShowPaste((s) => !s)}>Paste list</button>
                   <button className="text-accent hover:underline cursor-pointer" onClick={() => set({ creators: [...c.creators, { name: "", handles: {} }] })}>Add</button>
                 </div>
               </div>
-              <div className="surface rounded-[20px] overflow-hidden">
-                <AnimatePresence>
-                  {showPaste && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-b border-line">
+              <div className="surface rounded-[14px] overflow-hidden">
+                {showPaste && (
+                    <div className="border-b border-line">
                       <div className="p-3">
                         <textarea autoFocus className="field font-mono text-[12px] min-h-28 mb-2" placeholder={"One per line:\nRachael Potash @rachaelpotash ig:rachaelpotash\n@presliewatson\nhttps://www.tiktok.com/@selenamup"} value={paste} onChange={(e) => setPaste(e.target.value)} />
                         <Button className="w-full" onClick={applyPaste} disabled={!paste.trim()}>Add {paste.split("\n").filter((l) => l.trim()).length || ""} creators</Button>
                       </div>
-                    </motion.div>
+                    </div>
                   )}
-                </AnimatePresence>
                 {c.creators.length === 0 ? (
                   <div className="px-6 py-14 text-center">
                     <div className="text-[15px] text-soft">No creators yet</div>
@@ -182,8 +179,8 @@ export default function Setup({ onRun, recent, onOpen }: {
 
         {recent.length > 0 && (
           <section className="pb-20">
-            <div className="text-[13px] text-white/70 mb-1.5 px-4">Recent boards</div>
-            <div className="surface rounded-[20px] divide-y divide-line overflow-hidden">
+            <div className="text-[13px] text-mute mb-1.5 px-4">Recent boards</div>
+            <div className="surface rounded-[14px] divide-y divide-line overflow-hidden">
               {recent.map((r) => (
                 <button key={r.id} onClick={() => onOpen(r.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-fill transition cursor-pointer">
                   <div className="min-w-0 flex-1">
@@ -196,7 +193,6 @@ export default function Setup({ onRun, recent, onOpen }: {
             </div>
           </section>
         )}
-        <footer className="pb-8 text-center text-[12px] text-white/40">Background: Orion Nebula fly-through, NASA/JPL-Caltech</footer>
       </div>
     </div>
   );
@@ -206,9 +202,9 @@ export default function Setup({ onRun, recent, onOpen }: {
 function Group({ title, footer, children }: { title: string; footer?: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[13px] text-white/70 mb-1.5 px-4">{title}</div>
-      <div className="surface rounded-[20px] divide-y divide-line overflow-hidden">{children}</div>
-      {footer && <div className="text-[12px] text-white/60 mt-1.5 px-4 leading-snug">{footer}</div>}
+      <div className="text-[13px] text-mute mb-1.5 px-4">{title}</div>
+      <div className="surface rounded-[14px] divide-y divide-line overflow-hidden">{children}</div>
+      {footer && <div className="text-[12px] text-mute mt-1.5 px-4 leading-snug">{footer}</div>}
     </div>
   );
 }
@@ -225,7 +221,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export function Logo({ onClick }: { onClick?: () => void }) {
   return (
     <button onClick={onClick} className={cx("flex items-center gap-2", onClick && "cursor-pointer")}>
-      <div className="grid h-6 w-6 place-items-center rounded-[7px] bg-fg">
+      <div className="grid h-6 w-6 place-items-center rounded-[6px] bg-fg">
         <svg viewBox="0 0 32 32" className="h-3.5 w-3.5"><path d="M9 23V9h12M9 16h9" stroke="var(--bg-elevated)" strokeWidth="3.6" fill="none" strokeLinecap="round" /></svg>
       </div>
       <span className="text-[15px] font-semibold tracking-[-0.02em]">Feedboard</span>

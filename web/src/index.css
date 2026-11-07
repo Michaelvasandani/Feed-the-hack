@@ -23,26 +23,25 @@
   --color-sky: var(--teal);
 }
 
-/* Dark only: the app sits on a moving space background. */
+/* Dark only. Flat neutral surfaces separated by hairlines; color is reserved for data. */
 :root {
   color-scheme: dark;
-  --bg: #000000;
-  --bg-elevated: #1c1c1e;
-  --bg-tertiary: #2c2c2e;
-  --label: #f5f5f7;
-  --label-2: rgb(235 235 245 / 0.8);
-  --label-3: rgb(235 235 245 / 0.55);
-  --separator: rgb(255 255 255 / 0.12);
-  --fill: rgb(255 255 255 / 0.08);
-  --fill-2: rgb(255 255 255 / 0.14);
-  --segment: rgb(255 255 255 / 0.2);
-  --blue: #2997ff;
-  --red: #ff453a;
-  --green: #30d158;
-  --orange: #ff9f0a;
-  --indigo: #7d7aff;
-  --teal: #64d2ff;
-  --shadow: 0 8px 32px rgb(0 0 0 / 0.28);
+  --bg: #09090b;
+  --bg-elevated: #111113;
+  --bg-tertiary: #1a1a1d;
+  --label: #f4f4f5;
+  --label-2: rgb(244 244 245 / 0.78);
+  --label-3: rgb(244 244 245 / 0.5);
+  --separator: rgb(255 255 255 / 0.08);
+  --fill: rgb(255 255 255 / 0.045);
+  --fill-2: rgb(255 255 255 / 0.09);
+  --segment: rgb(255 255 255 / 0.1);
+  --blue: #4c9dff;
+  --red: #ff5f57;
+  --green: #3ecf8e;
+  --orange: #f5a524;
+  --indigo: #8b8aff;
+  --teal: #5ac8e8;
 }
 
 html {
@@ -52,95 +51,41 @@ body {
   @apply text-fg font-sans antialiased;
   min-height: 100dvh;
   font-size: 15px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.006em;
+  font-feature-settings: "tnum" 0, "cv11" 1;
 }
 
-/*
-  Performance: a backdrop-filter over a playing video re-blurs on every frame, once per element.
-  So the video itself is blurred once (on a quarter-size copy, scaled up), and most surfaces are
-  plain translucent fills over it. Only the floating bars and transient sheets keep a live backdrop blur.
-*/
 @layer components {
-/* Content material: thick translucent fill over the (already blurred) background. */
+/* Content surface: one step up from the page, with a hairline edge. */
 .surface {
-  background: rgb(24 24 28 / 0.66);
-  box-shadow: var(--shadow), inset 0 0 0 0.5px rgb(255 255 255 / 0.1);
+  background: var(--bg-elevated);
+  box-shadow: inset 0 0 0 1px var(--separator);
 }
-
-/* Liquid Glass look for the navigation and control layer: lit top edge, soft rim, specular sheen. */
+/* Controls: same surface, slightly lighter edge. */
 .glass {
-  position: relative;
-  isolation: isolate;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.15), rgb(255 255 255 / 0.06) 55%, rgb(255 255 255 / 0.09));
-  box-shadow:
-    inset 0 1px 0.5px rgb(255 255 255 / 0.35),
-    inset 0 -1px 1px rgb(255 255 255 / 0.08),
-    inset 0 0 0 0.5px rgb(255 255 255 / 0.18),
-    0 6px 24px rgb(0 0 0 / 0.3);
+  background: var(--bg-elevated);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
 }
-.glass::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: linear-gradient(135deg, rgb(255 255 255 / 0.14), transparent 30%, transparent 75%, rgb(255 255 255 / 0.06));
-  pointer-events: none;
-}
-/* Live lensing blur, for the few floating bars only. */
+/* Sticky bars over scrolling content. */
 .glass-blur {
-  -webkit-backdrop-filter: blur(14px) saturate(1.6);
-  backdrop-filter: blur(14px) saturate(1.6);
+  background: rgb(9 9 11 / 0.82);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
-/* Tinted glass for the primary action. */
-.glass-tint {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--blue) 92%, white), color-mix(in srgb, var(--blue) 80%, black));
-}
-/* Heavier glass for sheets and popovers that carry a lot of text; they're transient, so a live blur is fine. */
+.glass-tint { background: var(--label); color: var(--bg); }
+/* Sheets, popovers and tooltips. */
 .glass-sheet {
-  background: rgb(30 30 34 / 0.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.6);
-  backdrop-filter: blur(24px) saturate(1.6);
-  box-shadow: inset 0 1px 0.5px rgb(255 255 255 / 0.22), inset 0 0 0 0.5px rgb(255 255 255 / 0.14), 0 24px 80px rgb(0 0 0 / 0.5);
+  background: var(--bg-tertiary);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1), 0 16px 48px rgb(0 0 0 / 0.5);
 }
-
-/* Full-screen space video behind everything, dimmed so foreground text keeps its contrast. */
-.space-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: #000; contain: strict; }
-.space-bg video, .space-bg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-/* Blurred: draw at quarter size and scale up, so the blur runs on 1/16 of the pixels. */
-.space-bg[data-blur] video, .space-bg[data-blur] img {
-  inset: auto;
-  left: -10px;
-  top: -10px;
-  width: calc(25% + 15px);
-  height: calc(25% + 15px);
-  transform: scale(4);
-  transform-origin: 0 0;
-  filter: blur(5px) saturate(1.3);
-}
-/* Star field above the dimmed video. */
-.space-bg .stars { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
-.space-bg .star-layer {
-  position: absolute;
-  left: 0;
-  top: 0;
-  will-change: transform, opacity;
-  animation: star-drift var(--drift) linear infinite, star-twinkle var(--twinkle) ease-in-out var(--delay) infinite alternate;
-}
-@keyframes star-drift { from { transform: translateY(0); } to { transform: translateY(-1600px); } }
-@keyframes star-twinkle { from { opacity: 1; } to { opacity: 0.55; } }
-.space-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 50% 30%, rgb(0 0 0 / calc(var(--dim) - 0.15)), rgb(0 0 0 / var(--dim)) 70%);
-}
+.fade-in { animation: fade-in 0.18s ease-out; }
+.pop-in { animation: pop-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(6px) scale(0.99); } }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .surface, .glass, .glass-sheet { background: #1c1c1e; -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .space-bg video { display: none; }
-  .glass-tint { background: var(--blue); }
+  .glass-blur { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @media (prefers-contrast: more) {
   .glass, .surface, .glass-sheet { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.5); }
@@ -150,7 +95,7 @@ body {
 input, textarea, select { @apply outline-none; }
 :focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 45%, transparent); outline-offset: 1px; }
 .field {
-  @apply w-full rounded-[10px] bg-fill px-3 py-2 text-[15px] text-fg placeholder:text-mute transition;
+  @apply w-full rounded-[8px] bg-fill px-3 py-2 text-[15px] text-fg placeholder:text-mute transition;
 }
 .field:focus { box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--blue) 35%, transparent); background: var(--bg-elevated); }
 .field:focus-visible { outline: none; }
@@ -159,7 +104,6 @@ input, textarea, select { @apply outline-none; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-  .space-bg .star-layer { animation: none !important; }
 }
 .row-input {
   @apply min-w-0 flex-1 bg-transparent py-2.5 text-[15px] text-fg placeholder:text-mute;

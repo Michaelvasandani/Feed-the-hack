@@ -1,6 +1,5 @@
-import { AnimatePresence, motion } from "motion/react";
 import { ExternalLink, Eye, Heart, MessageCircle, Mic, ScanText, Tag, TextQuote } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { compact, cx, date, fmtMeta, mult, pct, secs } from "./lib";
 import type { Board, Format, Video } from "./types";
 import { Avatar, FormatChip, Meter, Modal, Pill } from "./ui";
@@ -46,7 +45,7 @@ export default function Videos({ board, initial }: { board: Board; initial: { cr
       {/* Filters: one row */}
       <div className="flex flex-wrap items-center gap-2 mb-5">
         <Seg value={tagFilter} onChange={setTagFilter} options={[["all", "All"], ["untagged", `Untagged · ${board.totals.untaggedVideos}`], ["tagged", "Tagged"]]} />
-        <select value={creator} onChange={(e) => setCreator(e.target.value)} className="glass rounded-full px-3.5 py-1.5 !text-[13px] cursor-pointer">
+        <select value={creator} onChange={(e) => setCreator(e.target.value)} className="glass rounded-[8px] px-3 py-1.5 !text-[13px] cursor-pointer">
           <option value="all">All creators</option>
           {board.creators.filter((c) => c.videos).map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
         </select>
@@ -60,11 +59,7 @@ export default function Videos({ board, initial }: { board: Board; initial: { cr
       </div>
       {!board.search?.algorithm && <p className="text-xs text-mute mb-4">This saved or sample board has no search scores. Run a live refresh to compare Best match with Most views.</p>}
 
-      <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        <AnimatePresence mode="popLayout">
-          {vids.map((v) => <VideoCard key={v.id} v={v} onOpen={() => setOpen(v)} />)}
-        </AnimatePresence>
-      </motion.div>
+      <Grid key={`${format}|${tagFilter}|${creator}|${sort}`} vids={vids} onOpen={setOpen} />
       {!vids.length && <div className="text-center text-mute py-20">No videos match these filters.</div>}
       <CandidateList candidates={board.candidates ?? []} />
       <VideoModal v={open} onClose={() => setOpen(null)} />
@@ -72,17 +67,40 @@ export default function Videos({ board, initial }: { board: Board; initial: { cr
   );
 }
 
+const PAGE = 40;
+
+/** Mounts cards a page at a time as the end of the grid scrolls into view; live boards run to hundreds of videos. */
+function Grid({ vids, onOpen }: { vids: Video[]; onOpen: (v: Video) => void }) {
+  const [limit, setLimit] = useState(PAGE);
+  const sentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setLimit((n) => n + PAGE), { rootMargin: "800px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [limit]);
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {vids.slice(0, limit).map((v, i) => <VideoCard key={v.id} v={v} eager={i < 10} onOpen={() => onOpen(v)} />)}
+      </div>
+      {limit < vids.length && <div ref={sentinel} className="h-px" />}
+    </>
+  );
+}
+
 function Seg<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: [T, string][] }) {
   return (
-    <div className="glass flex rounded-full p-1">
+    <div className="glass flex rounded-[8px] p-0.5">
       {options.map(([k, label]) => (
-        <button key={k} onClick={() => onChange(k)} className={cx("rounded-full px-3 py-1 text-[13px] cursor-pointer whitespace-nowrap", value === k ? "bg-segment text-fg font-medium shadow-[inset_0_1px_0.5px_rgb(255_255_255/0.35)]" : "text-soft hover:text-fg")}>{label}</button>
+        <button key={k} onClick={() => onChange(k)} className={cx("rounded-[6px] px-3 py-1 text-[13px] cursor-pointer whitespace-nowrap", value === k ? "bg-segment text-fg font-medium" : "text-soft hover:text-fg")}>{label}</button>
       ))}
     </div>
   );
 }
 
-function VideoCard({ v, onOpen }: { v: Video; onOpen: () => void }) {
+function VideoCard({ v, eager, onOpen }: { v: Video; eager: boolean; onOpen: () => void }) {
   const [hover, setHover] = useState(false);
   const [frame, setFrame] = useState(0);
   const frames = [v.thumbnailUrl, ...v.frameUrls].filter(Boolean) as string[];
@@ -93,18 +111,14 @@ function VideoCard({ v, onOpen }: { v: Video; onOpen: () => void }) {
   }, [hover, frames.length]);
   const why = whyMatched(v);
   return (
-    <motion.button
-      layout
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.96 }}
-            onHoverStart={() => setHover(true)}
-      onHoverEnd={() => setHover(false)}
+    <button
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       onClick={onOpen}
-      className="group text-left cursor-pointer"
+      className="group text-left cursor-pointer [content-visibility:auto] [contain-intrinsic-size:auto_420px]"
     >
-      <div className="relative aspect-[9/16] rounded-[16px] overflow-hidden bg-panel-2 text-white">
-        {frames[frame] && <img src={frames[frame]} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />}
+      <div className="relative aspect-[9/16] rounded-[10px] overflow-hidden bg-panel-2 text-white">
+        {frames[frame] && <img src={frames[frame]} alt="" loading={eager ? "eager" : "lazy"} decoding="async" className="absolute inset-0 h-full w-full object-cover" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-black/25" />
         <div className="absolute top-2.5 inset-x-2.5 flex items-start justify-between gap-1">
           <FormatChip format={v.format} size="xs" onMedia />
@@ -139,7 +153,7 @@ function VideoCard({ v, onOpen }: { v: Video; onOpen: () => void }) {
         <span className="ml-auto text-[11px] text-mute">{date(v.publishedAt)}</span>
       </div>
       {v.searchScore != null && <div className="mt-1 px-0.5 text-[11px] text-mute">Match score {v.searchScore.toFixed(3)}</div>}
-    </motion.button>
+    </button>
   );
 }
 
@@ -150,7 +164,7 @@ function VideoModal({ v, onClose }: { v: Video | null; onClose: () => void }) {
   return (
     <Modal open={!!v} onClose={onClose} title={<span className="flex items-center gap-2"><Avatar src={v.profilePictureUrl} name={v.creatorHandle} size={28} /> @{v.creatorHandle}</span>}>
       <div className="flex gap-1.5 overflow-x-auto scroll-thin pb-2 mb-4">
-        {[v.thumbnailUrl, ...v.frameUrls].filter(Boolean).map((u, i) => <img key={i} src={u!} alt="" className="h-36 aspect-[9/16] rounded-lg object-cover shrink-0" />)}
+        {[v.thumbnailUrl, ...v.frameUrls].filter(Boolean).map((u, i) => <img key={i} src={u!} alt="" decoding="async" className="h-36 aspect-[9/16] rounded-lg object-cover shrink-0" />)}
       </div>
       <div className="grid grid-cols-4 gap-2 mb-4 text-center">
         {[[Eye, compact(v.views)], [Heart, compact(v.likes)], [MessageCircle, compact(v.comments)], [Eye, mult(v.viewsPerFollowerPct) + " fol."]].map(([I, val], i) => {

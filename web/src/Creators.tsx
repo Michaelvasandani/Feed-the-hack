@@ -1,4 +1,3 @@
-import { motion } from "motion/react";
 import { Bell, Check, Copy, Crown, Film, ThumbsUp, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { api, compact, cx, date, mult, pct, secs } from "./lib";
@@ -20,11 +19,10 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
         eyebrow="Roster"
         title={`${board.totals.creatorsPosted} of ${board.totals.creatorsTotal} creators posted`}
         right={
-          <div className="glass flex rounded-full p-1">
+          <div className="glass flex rounded-[8px] p-0.5">
             {filters.map((f) => (
-              <button key={f} onClick={() => setFilter(f)} className={cx("relative rounded-full px-3 py-1 text-[13px] capitalize cursor-pointer", filter === f ? "text-fg font-medium" : "text-soft hover:text-fg")}>
-                {filter === f && <motion.div layoutId="cf" transition={{ duration: 0.25 }} className="absolute inset-0 rounded-full bg-segment shadow-[inset_0_1px_0.5px_rgb(255_255_255/0.35)]" />}
-                <span className="relative">{f} <span className="text-mute">{counts[f]}</span></span>
+              <button key={f} onClick={() => setFilter(f)} className={cx("rounded-[6px] px-3 py-1 text-[13px] capitalize cursor-pointer", filter === f ? "bg-segment text-fg font-medium" : "text-soft hover:text-fg")}>
+                {f} <span className="text-mute">{counts[f]}</span>
               </button>
             ))}
           </div>
@@ -48,8 +46,8 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
               </tr>
             </thead>
             <tbody>
-              {rows.map((c, i) => (
-                <motion.tr key={c.name} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }} className="border-b border-line/60 last:border-0 hover:bg-fill/60 transition">
+              {rows.map((c) => (
+                <tr key={c.name} className="border-b border-line/60 last:border-0 hover:bg-fill/60 transition">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar src={c.profilePictureUrl} name={c.name} />
@@ -90,7 +88,7 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
                       <RecButton c={c} onClick={() => setDraftFor(c)} />
                     </div>
                   </td>
-                </motion.tr>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -113,7 +111,7 @@ function RecButton({ c, onClick }: { c: CreatorRow; onClick: () => void }) {
     keep: { label: "Thank", icon: ThumbsUp, cls: "bg-fill text-fg hover:bg-fill-2" },
   }[c.recommendation];
   return (
-    <button onClick={onClick} className={cx("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium transition cursor-pointer", map.cls)}>
+    <button onClick={onClick} className={cx("inline-flex items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[13px] font-medium transition cursor-pointer", map.cls)}>
       <map.icon size={13} /> {map.label}
     </button>
   );

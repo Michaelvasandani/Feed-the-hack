@@ -1,20 +1,10 @@
-import { AnimatePresence, motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import { X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { cx, fmtMeta } from "./lib";
 import type { Format } from "./types";
 
-export function Card({ children, className, delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: delay * 0.5, ease: [0.25, 0.1, 0.25, 1] }}
-      className={cx("surface rounded-[22px]", className)}
-    >
-      {children}
-    </motion.div>
-  );
+export function Card({ children, className }: { children: ReactNode; className?: string; delay?: number }) {
+  return <div className={cx("surface rounded-[14px]", className)}>{children}</div>;
 }
 
 export function SectionTitle({ eyebrow, title, right }: { eyebrow?: string; title: ReactNode; right?: ReactNode }) {
@@ -29,13 +19,8 @@ export function SectionTitle({ eyebrow, title, right }: { eyebrow?: string; titl
   );
 }
 
-/** Number that eases to its value when it mounts / changes. */
 export function CountUp({ value, format }: { value: number; format: (n: number) => string }) {
-  const mv = useMotionValue(value);
-  const spring = useSpring(mv, { stiffness: 120, damping: 26 });
-  const text = useTransform(spring, (v) => format(v));
-  useEffect(() => mv.set(value), [value, mv]);
-  return <motion.span>{text}</motion.span>;
+  return <>{format(value)}</>;
 }
 
 export function Avatar({ src, name, size = 36 }: { src?: string | null; name: string; size?: number; ring?: string }) {
@@ -44,7 +29,7 @@ export function Avatar({ src, name, size = 36 }: { src?: string | null; name: st
   return (
     <div className="shrink-0 rounded-full overflow-hidden bg-panel-2" style={{ width: size, height: size }}>
       {src && !err ? (
-        <img src={src} alt="" onError={() => setErr(true)} className="w-full h-full object-cover" />
+        <img src={src} alt="" loading="lazy" decoding="async" onError={() => setErr(true)} className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full grid place-items-center text-[11px] font-semibold text-soft">{initials}</div>
       )}
@@ -84,16 +69,16 @@ export function Button({ children, onClick, variant = "primary", disabled, class
   children: ReactNode; onClick?: () => void; variant?: "primary" | "ghost" | "outline"; disabled?: boolean; className?: string; type?: "button" | "submit";
 }) {
   const v = {
-    primary: "glass glass-tint text-white hover:brightness-110 active:scale-[0.97]",
+    primary: "bg-fg text-ink hover:bg-soft active:scale-[0.98]",
     ghost: "text-accent hover:bg-fill",
-    outline: "glass text-fg hover:brightness-125 active:scale-[0.97]",
+    outline: "glass text-fg hover:bg-fill-2 active:scale-[0.98]",
   };
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={cx("inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[14px] font-medium transition-[filter,background-color,transform] duration-200 disabled:opacity-40 disabled:pointer-events-none cursor-pointer", v[variant], className)}
+      className={cx("inline-flex items-center justify-center gap-1.5 rounded-[8px] px-3.5 py-1.5 text-[14px] font-medium transition-[background-color,transform] duration-150 disabled:opacity-40 disabled:pointer-events-none cursor-pointer", v[variant], className)}
     >
       {children}
     </button>
@@ -102,33 +87,23 @@ export function Button({ children, onClick, variant = "primary", disabled, class
 
 export function Modal({ open, onClose, children, title }: { open: boolean; onClose: () => void; children: ReactNode; title?: ReactNode }) {
   useEffect(() => {
+    if (!open) return;
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
-  }, [onClose]);
+  }, [open, onClose]);
+  if (!open) return null;
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div className="fixed inset-0 z-50 grid place-items-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-          <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
-            className="relative w-full max-w-lg rounded-[26px] glass-sheet p-6 max-h-[85dvh] overflow-auto scroll-thin"
-          >
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <div className="text-[17px] font-semibold">{title}</div>
-              <button onClick={onClose} aria-label="Close" className="glass h-8 w-8 grid place-items-center rounded-full text-soft hover:text-fg cursor-pointer"><X size={14} strokeWidth={2.5} /></button>
-            </div>
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div className="fixed inset-0 z-50 grid place-items-center p-4 fade-in">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div role="dialog" aria-modal="true" className="relative w-full max-w-lg rounded-[16px] glass-sheet p-6 max-h-[85dvh] overflow-auto scroll-thin pop-in">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="text-[17px] font-semibold">{title}</div>
+          <button onClick={onClose} aria-label="Close" className="h-8 w-8 grid place-items-center rounded-[8px] text-soft hover:text-fg hover:bg-fill cursor-pointer"><X size={15} strokeWidth={2.25} /></button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -136,7 +111,7 @@ export function Meter({ value, color = "var(--blue)", className }: { value: numb
   return (
     <div className={cx("h-1.5 rounded-full bg-fill overflow-hidden", className)}>
       {value != null && (
-        <motion.div className="h-full rounded-full" style={{ background: color }} initial={{ width: 0 }} animate={{ width: `${Math.max(3, Math.min(100, value * 100))}%` }} transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }} />
+        <div className="h-full rounded-full" style={{ background: color, width: `${Math.max(3, Math.min(100, value * 100))}%` }} />
       )}
     </div>
   );
