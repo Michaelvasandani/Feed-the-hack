@@ -17,9 +17,10 @@ from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingRes
 
 from app import insights
 from app.classify import classify_videos
-from app.fetch import OrianeError, discover_prospects, fetch_videos
+from app.fetch import OrianeError, discover_prospects, fetch_videos, validate_campaign
 from app.metrics import build_board
 from app.relevance import filter_relevant
+from app.search import VERSION, rank_videos
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "fixtures"
@@ -58,14 +59,18 @@ def run_pipeline(campaign, live, log=lambda msg: None, stage=lambda name: None):
         log("Loading sample videos from fixtures…")
         videos = json.loads((FIXTURES / "videos.json").read_text())
     log(f"Found {len(videos['videos'])} videos ({sum(not v.get('tagged') for v in videos['videos'])} untagged).")
-    if campaign.get("discover"):
-        videos = filter_relevant(campaign, videos)
+    if live:
+        log("Verifying brand matches and ranking against the brief…")
+        videos = rank_videos(campaign, filter_relevant(campaign, videos))
+        log(f"Selected {len(videos['videos'])} matches; {len(videos.get('candidates', []))} need review.")
     stage("classify")
     log("Labeling formats…")
-    labeled = classify_videos(videos)
+    labeled = classify_videos(videos, backend=None if live else "keyword")
     stage("metrics")
     log("Reading hooks and comments, writing insights…")
-    board = insights.add_insights(build_board(campaign, labeled))
+    board = insights.add_insights(build_board(campaign, labeled),
+                                  signals_backend=None if live else "heuristic",
+                                  insights_backend=None if live else "rules")
     store_write("boards", campaign["id"], board)
     return board
 
@@ -88,9 +93,13 @@ async def run(request: Request):
     camp, live = body.get("campaign") or {}, body.get("source", "live") == "live"
     if not camp.get("brand", {}).get("name") or not (camp.get("creators") or camp.get("discover")):
         raise HTTPException(400, "campaign needs a brand and at least one creator")
-    camp["id"] = camp.get("id") or slug(f'{camp["brand"]["name"]}-{camp["window"]["start"]}')
     camp["brand"]["aliases"] = camp["brand"].get("aliases") or [camp["brand"]["name"].lower()]
     camp["brand"].setdefault("handles", {})
+    try:
+        validate_campaign(camp)
+        camp["id"] = camp.get("id") or slug(f'{camp["brand"]["name"]}-{camp["window"]["start"]}')
+    except (ValueError, KeyError, TypeError) as e:
+        raise HTTPException(400, f"Invalid campaign: {e}") from e
     store_write("campaigns", camp["id"], camp)
     return StreamingResponse(_stream(camp, live), media_type="application/x-ndjson")
 
@@ -146,12 +155,14 @@ async def discover(id_: str, request: Request):
     if not camp:
         raise HTTPException(404, "campaign not found")
     cached = store_read("discover", id_)
-    if cached is not None and not body.get("refresh"):
+    if isinstance(cached, dict) and cached.get("search", {}).get("algorithm") == VERSION and not body.get("refresh"):
         return cached
     try:
         out = discover_prospects(camp)
     except OrianeError as e:
         raise HTTPException(502, str(e)) from e
+    except (ValueError, KeyError, TypeError) as e:
+        raise HTTPException(400, f"Invalid campaign: {e}") from e
     store_write("discover", id_, out)
     return out
 
@@ -162,6 +173,8 @@ async def draft(id_: str, request: Request):
     cr = next((c for c in b["creators"] if c["name"] == name), None)
     if not cr:
         raise HTTPException(404, "creator not found")
+    if cr.get("recommendation") is None:
+        raise HTTPException(409, "Review incomplete search coverage or unresolved matches before drafting outreach.")
     return insights.draft_message(b, cr)
 
 

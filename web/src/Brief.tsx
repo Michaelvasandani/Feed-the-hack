@@ -138,8 +138,8 @@ function SampleVideo({ prompt, boardId }: { prompt: string | null; boardId: stri
           }
         } catch { /* keep polling */ }
       }, 4000);
-    } catch (e: any) {
-      setState({ status: "error", msg: e.message });
+    } catch (e: unknown) {
+      setState({ status: "error", msg: e instanceof Error ? e.message : String(e) });
     }
   };
 

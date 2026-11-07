@@ -10,7 +10,7 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
   const [filter, setFilter] = useState<"all" | CreatorRow["recommendation"]>("all");
   const rows = board.creators.filter((c) => filter === "all" || c.recommendation === filter);
   const counts = { all: board.creators.length, rehire: 0, recruit: 0, nudge: 0, keep: 0 } as Record<string, number>;
-  board.creators.forEach((c) => counts[c.recommendation]++);
+  board.creators.forEach((c) => { if (c.recommendation) counts[c.recommendation]++; });
   // Recruits only exist when the board was built with discovery on.
   const filters = (["all", "rehire", "recruit", "nudge", "keep"] as const).filter((f) => f !== "recruit" || counts.recruit);
 
@@ -62,7 +62,7 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    {c.status === "posted" ? <Pill tone="mint">● Posted</Pill> : <Pill tone="rose">○ Quiet</Pill>}
+                    {c.status === "posted" ? <Pill tone="mint">● Posted</Pill> : c.status === "unknown" ? <Pill tone="amber">? Unknown</Pill> : <Pill tone="rose">○ Quiet</Pill>}
                     {c.lastPostedAt && <div className="text-[11px] text-mute mt-1">last {date(c.lastPostedAt)}</div>}
                   </td>
                   <td className="px-3 py-3 text-right font-mono">{c.videos}</td>
@@ -105,6 +105,7 @@ export default function Creators({ board, goVideos }: { board: Board; goVideos: 
 }
 
 function RecButton({ c, onClick }: { c: CreatorRow; onClick: () => void }) {
+  if (!c.recommendation) return <span className="text-xs text-mute">Needs review</span>;
   const map = {
     rehire: { label: "Rehire", icon: Crown, cls: "bg-amber/15 text-amber ring-amber/30 hover:bg-amber/25" },
     recruit: { label: "Recruit", icon: UserPlus, cls: "bg-mint/15 text-mint ring-mint/30 hover:bg-mint/25" },
@@ -136,7 +137,7 @@ function DraftModal({ board, creator, onClose }: { board: Board; creator: Creato
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <Modal open={!!creator} onClose={() => { setForName(null); onClose(); }} title={creator && <span className="flex items-center gap-2"><Mail size={17} className="text-rose" /> {{ nudge: "Nudge", rehire: "Rehire", recruit: "Recruit", keep: "Thank" }[creator.recommendation]} {creator.name}</span>}>
+    <Modal open={!!creator} onClose={() => { setForName(null); onClose(); }} title={creator && <span className="flex items-center gap-2"><Mail size={17} className="text-rose" /> {creator.recommendation && { nudge: "Nudge", rehire: "Rehire", recruit: "Recruit", keep: "Thank" }[creator.recommendation]} {creator.name}</span>}>
       {err ? <div className="text-sm text-rose">{err}</div> : !draft ? (
         <div className="flex items-center gap-2 text-sm text-soft py-8 justify-center"><Spinner /> Drafting from their campaign data…</div>
       ) : (

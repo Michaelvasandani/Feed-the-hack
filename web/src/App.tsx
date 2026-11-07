@@ -41,8 +41,8 @@ export default function App() {
           api.boards().then(setRecent).catch(() => {});
         }
       });
-    } catch (err: any) {
-      setRun((r) => ({ ...r, error: err.message }));
+    } catch (err: unknown) {
+      setRun((r) => ({ ...r, error: err instanceof Error ? err.message : String(err) }));
     }
   };
 

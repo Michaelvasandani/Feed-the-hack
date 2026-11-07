@@ -10,6 +10,7 @@ import { Logo } from "./Setup";
 import type { Board as BoardT, InsightAction } from "./types";
 import { Avatar, Button, Card, CountUp, FormatChip, SectionTitle, Spinner } from "./ui";
 import Videos from "./Videos";
+import { SearchStatus } from "./SearchStatus";
 
 const TABS = [
   { key: "overview", label: "Overview", icon: Sparkles },
@@ -54,6 +55,7 @@ export default function Board({ board, onHome, onRerun }: { board: BoardT; onHom
       </header>
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-8">
+        <SearchStatus search={board.search} candidates={board.candidates} />
         <AnimatePresence mode="wait">
           <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
             {tab === "overview" && <Overview board={board} setTab={setTab} goVideos={goVideos} />}
@@ -101,7 +103,7 @@ function Overview({ board, setTab, goVideos }: { board: BoardT; setTab: (t: Tab)
           </h1>
           {win && (
             <p className="mt-4 text-soft text-base sm:text-lg max-w-3xl">
-              <FormatChip format={win.format} /> is the format that won: on average its videos reached <b className="text-white">{mult(win.avgViewsPerFollowerPct)}</b> each creator's follower count.{" "}
+              <FormatChip format={win.format} /> is the best format in these results: on average its videos reached <b className="text-white">{mult(win.avgViewsPerFollowerPct)}</b> each creator's follower count.{" "}
               <button className="text-white underline underline-offset-4 decoration-rose/60 cursor-pointer" onClick={() => setTab("brief")}>Brief more of these →</button>
             </p>
           )}
@@ -160,12 +162,12 @@ function Overview({ board, setTab, goVideos }: { board: BoardT; setTab: (t: Tab)
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium truncate">{c.name}</div>
                   <div className="text-xs text-mute">
-                    {c.offBriefPosts > 0 ? <>Active — posted <b className="text-soft">{c.offBriefPosts}×</b> in the window, never about you</> : "No posts at all in the window"}
+                    {(c.offBriefPosts ?? 0) > 0 ? <>Active — <b className="text-soft">{c.offBriefPosts}</b> videos outside the campaign matches</> : c.offBriefPosts == null ? "Activity coverage unavailable" : "No video posts found in the window"}
                   </div>
                 </div>
               </div>
             ))}
-            {!nudge.length && <div className="text-sm text-mute py-4">Everyone on the roster posted. 🎉</div>}
+            {!nudge.length && <div className="text-sm text-mute py-4">{board.creators.some((c) => c.status === "unknown") ? "Some creators remain unknown; check search coverage and candidates." : t.creatorsTotal ? "Everyone on the roster posted. 🎉" : "No hired creators on this roster."}</div>}
           </div>
         </Card>
       </div>
@@ -326,8 +328,8 @@ function AskBar({ board }: { board: BoardT }) {
     try {
       const r = await api.ask(board.campaign.id, question);
       setAnswer({ q: question, a: r.answer });
-    } catch (e: any) {
-      setAnswer({ q: question, a: `⚠️ ${e.message}` });
+    } catch (e: unknown) {
+      setAnswer({ q: question, a: `⚠️ ${e instanceof Error ? e.message : String(e)}` });
     } finally {
       setBusy(false);
       setQ("");

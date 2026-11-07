@@ -31,4 +31,4 @@ def test_keep_result_drops_brand_and_excluded():
 
 def test_no_brand_handles_skips_mention_filter():
     camp = {**CAMP, "brand": {**CAMP["brand"], "handles": {}}}
-    assert "mentionHandles" not in build_query(camp)["queries"][0]["queries"][0]["filters"]
+    assert "mentionHandles" not in build_query(camp)["queries"][0]["filters"]

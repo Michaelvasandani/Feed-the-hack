@@ -1,4 +1,4 @@
-import type { Board, Campaign, Format } from "./types";
+import type { Board, Campaign, Format, SearchMetadata, Video } from "./types";
 
 // ---------- API ----------
 
@@ -40,13 +40,14 @@ export interface Prospect {
   topVideo: { id: string; url: string | null; thumbnailUrl: string | null; caption: string; views: number | null; viewsPerFollowerPct: number | null; matchedBy: string[] };
 }
 export interface NextBrief { headline: string; format: string; why: string[]; hook: string; mustDo: string[]; avoid: string[]; shotList: string[]; videoPrompt: string; briefSource?: "gmi" | "rules"; briefModel?: string }
+export interface DiscoveryResult { prospects: Prospect[]; search: SearchMetadata; candidates: Video[] }
 
 export const api = {
   demoCampaign: () => json<Campaign>("/api/demo-campaign"),
   boards: () => json<{ id: string; brandName: string; videos: number; views: number; generatedAt: number }[]>("/api/boards"),
   campaign: (id: string) => json<Campaign>(`/api/campaigns/${id}`),
   board: (id: string) => json<Board>(`/api/boards/${id}`),
-  discover: (id: string, refresh = false) => json<Prospect[]>(`/api/boards/${id}/discover`, { refresh }),
+  discover: (id: string, refresh = false) => json<DiscoveryResult>(`/api/boards/${id}/discover`, { refresh }),
   draft: (id: string, creatorName: string) => json<{ subject: string; body: string }>(`/api/boards/${id}/draft`, { creatorName }),
   brief: (id: string, refresh = false) => json<NextBrief>(`/api/boards/${id}/brief`, { refresh }),
   ask: (id: string, question: string) => json<{ answer: string }>(`/api/boards/${id}/ask`, { question }),

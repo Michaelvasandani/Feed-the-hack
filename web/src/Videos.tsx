@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { compact, cx, date, fmtMeta, mult, pct, secs } from "./lib";
 import type { Board, Format, Video } from "./types";
 import { Avatar, FormatChip, Meter, Modal, Pill } from "./ui";
+import { CandidateList } from "./SearchStatus";
 
-type Sort = "views" | "vpf" | "recent";
+type Sort = "match" | "views" | "vpf" | "recent";
 
 /** Human "why it matched" for untagged videos. */
 export function whyMatched(v: Video): { icon: typeof Mic; text: string }[] {
@@ -16,7 +17,7 @@ export function whyMatched(v: Video): { icon: typeof Mic; text: string }[] {
   else if (v.matchedBy.includes("transcript")) out.push({ icon: Mic, text: "Said it" });
   if (shown) out.push({ icon: ScanText, text: `On screen at ${secs(shown.atSeconds)}` });
   else if (v.matchedBy.includes("onScreenText")) out.push({ icon: ScanText, text: "Shown on screen" });
-  if (v.matchedBy.includes("visual")) out.push({ icon: Eye, text: "Product spotted" });
+  if (v.matchedBy.includes("visual")) out.push({ icon: Eye, text: "Visual similarity" });
   if (v.matchedBy.includes("caption") && !v.tagged) out.push({ icon: TextQuote, text: "Named in caption" });
   return out;
 }
@@ -25,7 +26,7 @@ export default function Videos({ board, initial }: { board: Board; initial: { cr
   const [format, setFormat] = useState<Format | "all">("all");
   const [tagFilter, setTagFilter] = useState<"all" | "tagged" | "untagged">(initial.untagged ? "untagged" : "all");
   const [creator, setCreator] = useState<string | "all">(initial.creator ?? "all");
-  const [sort, setSort] = useState<Sort>("views");
+  const [sort, setSort] = useState<Sort>("match");
   const [open, setOpen] = useState<Video | null>(null);
 
   const creatorHandles = useMemo(() => {
@@ -37,7 +38,7 @@ export default function Videos({ board, initial }: { board: Board; initial: { cr
     .filter((v) => format === "all" || v.format === format)
     .filter((v) => tagFilter === "all" || (tagFilter === "tagged" ? v.tagged : !v.tagged))
     .filter((v) => !creatorHandles || creatorHandles.includes(v.creatorHandle.toLowerCase()))
-    .sort((a, b) => (sort === "views" ? (b.views ?? -1) - (a.views ?? -1) : sort === "vpf" ? (b.viewsPerFollowerPct ?? -1) - (a.viewsPerFollowerPct ?? -1) : b.publishedAt.localeCompare(a.publishedAt)));
+    .sort((a, b) => (sort === "match" ? (b.searchScore ?? 0) - (a.searchScore ?? 0) || (b.views ?? -1) - (a.views ?? -1) : sort === "views" ? (b.views ?? -1) - (a.views ?? -1) : sort === "vpf" ? (b.viewsPerFollowerPct ?? -1) - (a.viewsPerFollowerPct ?? -1) : b.publishedAt.localeCompare(a.publishedAt)));
   const formats = [...new Set(board.videos.map((v) => v.format as Format))];
 
   return (
@@ -55,8 +56,9 @@ export default function Videos({ board, initial }: { board: Board; initial: { cr
             <button key={f} onClick={() => setFormat(f)} className={cx("rounded-full cursor-pointer transition", format === f ? "opacity-100" : "opacity-55 hover:opacity-90")}><FormatChip format={f} size="xs" /></button>
           ))}
         </div>
-        <div className="ml-auto"><Seg value={sort} onChange={setSort} options={[["views", "Most views"], ["vpf", "× followers"], ["recent", "Newest"]]} /></div>
+        <div className="ml-auto"><Seg value={sort} onChange={setSort} options={[["match", "Best match"], ["views", "Most views"], ["vpf", "× followers"], ["recent", "Newest"]]} /></div>
       </div>
+      {!board.search?.algorithm && <p className="text-xs text-mute mb-4">This saved or sample board has no search scores. Run a live refresh to compare Best match with Most views.</p>}
 
       <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         <AnimatePresence mode="popLayout">
@@ -64,6 +66,7 @@ export default function Videos({ board, initial }: { board: Board; initial: { cr
         </AnimatePresence>
       </motion.div>
       {!vids.length && <div className="text-center text-mute py-20">No videos match these filters.</div>}
+      <CandidateList candidates={board.candidates ?? []} />
       <VideoModal v={open} onClose={() => setOpen(null)} />
     </div>
   );
@@ -123,7 +126,7 @@ function VideoCard({ v, onOpen }: { v: Video; onOpen: () => void }) {
           <div className="flex items-end justify-between gap-2">
             <div>
               <div className="text-xl font-semibold leading-none tracking-tight">{compact(v.views)}</div>
-              <div className="text-[11px] text-soft/80 mt-1">{v.views == null ? "carousel" : "views"}</div>
+              <div className="text-[11px] text-soft/80 mt-1">{v.views == null ? "views unavailable" : "views"}</div>
             </div>
             {v.viewsPerFollowerPct != null && (
               <div className={cx("text-right text-xs font-mono", v.viewsPerFollowerPct >= 100 ? "text-amber" : "text-soft/80")}>{mult(v.viewsPerFollowerPct)}<div className="text-[10px] text-mute font-sans">followers</div></div>
@@ -136,6 +139,7 @@ function VideoCard({ v, onOpen }: { v: Video; onOpen: () => void }) {
         <span className="text-xs text-soft truncate">@{v.creatorHandle}</span>
         <span className="ml-auto text-[11px] text-mute">{date(v.publishedAt)}</span>
       </div>
+      {v.searchScore != null && <div className="mt-1 px-0.5 text-[11px] text-mute">Match score {v.searchScore.toFixed(3)}</div>}
     </motion.button>
   );
 }
@@ -157,6 +161,7 @@ function VideoModal({ v, onClose }: { v: Video | null; onClose: () => void }) {
       </div>
 
       <div className="rounded-xl bg-white/[0.03] ring-1 ring-white/[0.06] p-3 mb-4">
+        {v.searchScore != null && <div className="text-sm text-soft mb-3">Match score {v.searchScore.toFixed(3)} · {v.relevanceReason}</div>}
         <div className="flex items-center justify-between mb-2">
           <FormatChip format={v.format} />
           {v.formatConfidence != null && <span className="text-[11px] text-mute">{pct(v.formatConfidence * 100)} confident</span>}

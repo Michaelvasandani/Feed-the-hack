@@ -55,6 +55,7 @@ Return only a JSON object with these keys:
 
 INSIGHTS_SYSTEM = """You are the strategist at an agency running a UGC creator campaign. You get the campaign's board numbers and per-video signals.
 Creators with "discovered": true were not hired; they posted about the brand on their own, so the action for them is "recruit", not "rehire".
+Unknown status or null recommendation means evidence is incomplete: do not nudge, rehire, or recruit that creator. Search coverage and shortlist limits apply to every conclusion; candidates are excluded from totals.
 Write what the account team should do on Monday. Be specific, cite numbers from the data, never invent numbers.
 Return only a JSON object with these keys:
 - "headline": one sentence under 25 words, the single most important takeaway
@@ -217,6 +218,7 @@ def _summary(board):
     return {
         "campaign": board["campaign"],
         "totals": board["totals"],
+        "search": board.get("search", {}),
         "creators": [{k: c.get(k) for k in ("name", "status", "videos", "views", "followers",
                                              "bestViewsPerFollowerPct", "recommendation", "discovered")}
                      for c in board["creators"]],
@@ -245,7 +247,7 @@ def rule_insights(board):
     ranked = [f for f in formats if f["format"] not in ("other", "unclassified") and f["avgViewsPerFollowerPct"]]
     winner = next((f for f in formats if f["winner"]), None)
     runner = next((f for f in ranked if winner and f["format"] != winner["format"]), None)
-    stars = [c for c in creators if c["overperformer"]]
+    stars = [c for c in creators if c["overperformer"] and c.get("recommendation") in ("rehire", "recruit")]
     quiet = [c for c in creators if c["status"] == "quiet"]
     name = lambda f: f["format"].replace("_", " ")  # noqa: E731
 
@@ -348,10 +350,10 @@ def rollup_audience(board):
     return {**board, "videos": videos, "creators": creators, "totals": {**board["totals"], "avgSentiment": avg}}
 
 
-def add_insights(board):
+def add_insights(board, *, signals_backend=None, insights_backend=None):
     load_env()  # keys added after the server started still get picked up
-    board = rollup_audience({**board, "videos": add_signals(board["videos"], board["campaign"]["brandName"])})
-    return {**board, "insights": campaign_insights(board)}
+    board = rollup_audience({**board, "videos": add_signals(board["videos"], board["campaign"]["brandName"], backend=signals_backend)})
+    return {**board, "insights": campaign_insights(board, backend=insights_backend)}
 
 
 # ---- on demand: next brief, outreach drafts, ask, sample video ----------------------------------

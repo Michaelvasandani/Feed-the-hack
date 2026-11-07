@@ -15,6 +15,7 @@ export interface Campaign {
   window: { start: string; end: string };
   creators: Creator[];
   discover?: boolean; // also find creators outside the roster who posted about the brand
+  discovery?: { maxVideos?: number; maxCandidates?: number; maxPerCreator?: number; minFollowers?: number; maxFollowers?: number; excludeHandles?: string[] };
 }
 
 export type MatchSource = "caption" | "transcript" | "onScreenText" | "mention" | "visual";
@@ -63,6 +64,13 @@ export interface Video {
   productVisible?: boolean | null;
   sentiment?: Sentiment | null;
   signals?: Signals;
+  contentFormat?: string;
+  searchScore?: number;
+  searchSignals?: { brand: number; rrf: number; brief: number; engagement: number };
+  relevanceStatus?: "accepted" | "candidate" | "rejected";
+  relevanceReason?: string;
+  brandRelevance?: number | null;
+  matchEvidence?: { kind: MatchSource; alias?: string; excerpt?: string; handle?: string; assetId?: string; score?: number | null; matchedFrameUrl?: string | null; queryId?: string }[];
 }
 
 /** Per-video read from the intelligence layer (GMI, or a keyword heuristic without a key). */
@@ -101,14 +109,14 @@ export interface VideosFile {
   campaignId: string;
   fetchedAt: number;
   videos: Video[];
-  activity?: Record<string, { posts: number; views: number }>; // all posts per handle in window (any topic)
+  activity?: Record<string, number>; // video posts per platform:handle in window (any topic)
 }
 
 export interface CreatorRow {
   name: string;
   handles: Partial<Record<Platform, string>>;
   profilePictureUrl: string | null;
-  status: "posted" | "quiet";
+  status: "posted" | "quiet" | "unknown";
   videos: number;
   views: number;
   followers: number | null;
@@ -116,9 +124,9 @@ export interface CreatorRow {
   avgEngagementPerViewPct: number | null;
   lastPostedAt: string | null;
   overperformer: boolean;
-  recommendation: "rehire" | "recruit" | "nudge" | "keep";
+  recommendation: "rehire" | "recruit" | "nudge" | "keep" | null;
   discovered?: boolean; // not on the roster; found posting about the brand on their own
-  offBriefPosts: number; // posts in window that don't mention the brand
+  offBriefPosts: number | null; // unknown if activity or campaign evidence is incomplete
   sentimentScore: number | null;
   purchaseIntent: number | null;
   avgFirstMentionSeconds: number | null;
@@ -146,4 +154,16 @@ export interface Board {
   timeline: { date: string; views: number; videos: number }[];
   videos: Video[];
   insights?: Insights;
+  search?: SearchMetadata;
+  candidates?: Video[];
+}
+
+export interface SearchMetadata {
+  algorithm?: string;
+  partial?: boolean;
+  rosterComplete?: boolean;
+  verifiedMatches?: number;
+  selectedMatches?: number;
+  omittedByShortlist?: number;
+  needsReview?: number;
 }
