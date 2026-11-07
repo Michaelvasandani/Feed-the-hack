@@ -33,16 +33,29 @@ def build_totals(videos, creators):
         "likes": _sum(v.get("likes") for v in videos),
         "comments": _sum(v.get("comments") for v in videos),
         "shares": _sum(v.get("shares") for v in videos),
-        "creatorsPosted": sum(c["status"] == "posted" for c in creators),
-        "creatorsTotal": len(creators),
+        "creatorsPosted": sum(c["status"] == "posted" and not c.get("discovered") for c in creators),
+        "creatorsTotal": sum(not c.get("discovered") for c in creators),
+        "creatorsDiscovered": sum(bool(c.get("discovered")) for c in creators),
         "untaggedVideos": len(untagged),
         "untaggedViews": _sum(v.get("views") for v in untagged),
     }
 
 
+def discovered_creators(campaign, videos):
+    """Creators who posted about the brand but aren't on the roster, one per handle across platforms."""
+    roster = {(p, h.lower()) for c in campaign.get("creators") or [] for p, h in c["handles"].items()}
+    found = {}
+    for v in videos:
+        h = v["creatorHandle"].lower()
+        if (v["platform"], h) not in roster:
+            found.setdefault(h, {"name": "@" + v["creatorHandle"], "handles": {}, "discovered": True})
+            found[h]["handles"].setdefault(v["platform"], v["creatorHandle"])
+    return list(found.values())
+
+
 def build_creators(campaign, videos):
     out = []
-    for c in campaign["creators"]:
+    for c in [*(campaign.get("creators") or []), *discovered_creators(campaign, videos)]:
         keys = {(p, h.lower()) for p, h in c["handles"].items()}
         mine = [v for v in videos if (v["platform"], v["creatorHandle"].lower()) in keys]
         # Followers: largest count seen per platform, summed across platforms.
@@ -54,9 +67,14 @@ def build_creators(campaign, videos):
         best = round(max(vpf), 2) if vpf else None
         status = "posted" if mine else "quiet"
         overperformer = best is not None and best >= 100
+        if c.get("discovered"):
+            recommendation = "recruit" if overperformer else "keep"
+        else:
+            recommendation = "nudge" if status == "quiet" else "rehire" if overperformer else "keep"
         out.append({
             "name": c["name"],
             "handles": c["handles"],
+            "discovered": bool(c.get("discovered")),
             "status": status,
             "videos": len(mine),
             "views": _sum(v.get("views") for v in mine),
@@ -64,9 +82,9 @@ def build_creators(campaign, videos):
             "bestViewsPerFollowerPct": best,
             "lastPostedAt": max((v["publishedAt"] for v in mine), default=None),
             "overperformer": overperformer,
-            "recommendation": "nudge" if status == "quiet" else "rehire" if overperformer else "keep",
+            "recommendation": recommendation,
         })
-    out.sort(key=lambda c: (c["status"] != "posted", -c["views"]))
+    out.sort(key=lambda c: (c["status"] != "posted", c["discovered"], -c["views"]))
     return out
 
 
@@ -100,8 +118,9 @@ def build_board(campaign, labeled):
     return {
         "campaign": {"id": campaign["id"], "brandName": campaign["brand"]["name"],
                      "handles": campaign["brand"].get("handles", {}),
-                     "brief": campaign.get("brief", ""), "window": window},
-        "totals": build_totals(videos, creators),
+                     "brief": campaign.get("brief", ""), "window": window,
+                     "discover": bool(campaign.get("discover"))},
+        "totals": {**build_totals(videos, creators), "droppedOffBrand": labeled.get("droppedOffBrand", 0)},
         "creators": creators,
         "formats": build_formats(videos),
         "videos": videos,

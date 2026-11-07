@@ -46,10 +46,11 @@ Return only a JSON object with these keys:
 - "claims": up to 3 short things the creator says about the product, in English (empty list if none)"""
 
 INSIGHTS_SYSTEM = """You are the strategist at an agency running a UGC creator campaign. You get the campaign's board numbers and per-video signals.
+Creators with "discovered": true were not hired; they posted about the brand on their own, so the action for them is "recruit", not "rehire".
 Write what the account team should do on Monday. Be specific, cite numbers from the data, never invent numbers.
 Return only a JSON object with these keys:
-- "headline": one sentence, the single most important takeaway
-- "actions": 3 to 5 items, most important first, each {"kind": "brief" | "rehire" | "nudge" | "watch", "title": "short imperative", "detail": "one or two sentences with the evidence"}
+- "headline": one sentence under 25 words, the single most important takeaway
+- "actions": 3 to 5 items, most important first, each {"kind": "brief" | "rehire" | "recruit" | "nudge" | "watch", "title": "short imperative", "detail": "one or two sentences with the evidence"}
 - "nextBrief": a short draft brief for the next wave (3 to 5 sentences): format, hook style, what to say about the product"""
 
 
@@ -62,7 +63,7 @@ class VideoSignals(BaseModel):
 
 
 class Action(BaseModel):
-    kind: Literal["brief", "rehire", "nudge", "watch"]
+    kind: Literal["brief", "rehire", "recruit", "nudge", "watch"]
     title: str
     detail: str
 
@@ -193,8 +194,9 @@ def _summary(board):
     return {
         "campaign": board["campaign"],
         "totals": board["totals"],
-        "creators": [{k: c[k] for k in ("name", "status", "videos", "views", "followers",
-                                         "bestViewsPerFollowerPct", "recommendation")} for c in board["creators"]],
+        "creators": [{k: c.get(k) for k in ("name", "status", "videos", "views", "followers",
+                                             "bestViewsPerFollowerPct", "recommendation", "discovered")}
+                     for c in board["creators"]],
         "formats": [{k: f[k] for k in ("format", "videos", "views", "avgViewsPerFollowerPct", "winner")}
                     for f in board["formats"]],
         "videos": [{"creator": v["creatorHandle"], "format": v.get("format"), "views": v.get("views"),
@@ -231,12 +233,13 @@ def rule_insights(board):
                         "detail": f"{name(winner).capitalize()} videos reached {_reach(winner['avgViewsPerFollowerPct'])} "
                                   f"on average across {winner['videos']} videos{vs}."})
     for c in stars[:2]:
-        actions.append({"kind": "rehire", "title": f"Rehire {c['name']}",
+        kind = "recruit" if c.get("discovered") else "rehire"
+        actions.append({"kind": kind, "title": f"{kind.capitalize()} {c['name']}",
                         "detail": f"Best video reached {_reach(c['bestViewsPerFollowerPct'])} "
                                   f"({c['views']:,} views in total)."})
     if quiet:
         actions.append({"kind": "nudge", "title": f"Nudge {', '.join(c['name'] for c in quiet)}",
-                        "detail": f"No post in the window yet; {t['creatorsPosted']} of {t['creatorsTotal']} creators have posted."})
+                        "detail": f"No post in the window yet; {t['creatorsPosted']} of {t['creatorsTotal']} hired creators have posted."})
     if t["untaggedVideos"]:
         share = t["untaggedViews"] / t["views"] if t["views"] else 0
         actions.append({"kind": "watch", "title": "Ask creators to tag the brand",
