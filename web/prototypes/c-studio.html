@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Campaign Board · Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: app shell. Creator rail on the left filters a content-first video wall; numbers live in one thin strip. Dark-first. */
+:root {
+  --bg: #0b0b0d; --panel: #131316; --raise: #1b1b1f; --line: #26262b;
+  --fg: #ededf0; --fg-2: #8b8b94; --fg-3: #55555d;
+  --accent: #e8c8ff; --accent-ink: #1a1020; --warn: #ffb86b;
+  --sans: "Manrope", ui-sans-serif, system-ui, sans-serif; color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f4f4f6; --panel: #ffffff; --raise: #f0f0f3; --line: #e4e4e8; --fg: #121216; --fg-2: #6b6b74; --fg-3: #a8a8b0;
+  --accent: #6d28d9; --accent-ink: #ffffff; --warn: #c2410c; color-scheme: light; } }
+:root[data-theme="light"] { --bg: #f4f4f6; --panel: #ffffff; --raise: #f0f0f3; --line: #e4e4e8; --fg: #121216; --fg-2: #6b6b74; --fg-3: #a8a8b0;
+  --accent: #6d28d9; --accent-ink: #ffffff; --warn: #c2410c; color-scheme: light; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
+.shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100%; }
+aside { background: var(--panel); border-right: 1px solid var(--line); padding: 20px 12px; padding-left: max(12px, env(safe-area-inset-left)); display: grid; grid-template-rows: auto auto 1fr auto; gap: 18px; position: sticky; top: 0; height: 100vh; overflow: auto; }
+.camp { padding: 0 8px; display: grid; gap: 2px; }
+.camp b { font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+.camp span { color: var(--fg-2); font-size: 12px; }
+.lbl { padding: 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-3); }
+.list { display: grid; gap: 2px; align-content: start; }
+.c { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 8px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; width: 100%; }
+.c:hover { background: var(--raise); }
+.c.on { background: var(--raise); box-shadow: inset 0 0 0 1px var(--line); }
+.c .av { width: 28px; height: 28px; border-radius: 50%; background: var(--raise) center/cover; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--fg-2); box-shadow: inset 0 0 0 1px var(--line); }
+.c .t { min-width: 0; }
+.c .t div:first-child { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c .t div:last-child { font-size: 12px; color: var(--fg-2); }
+.c .x { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--fg-2); }
+.c.star .x { color: var(--accent); font-weight: 700; }
+.c.quiet .t div:last-child { color: var(--warn); }
+.note { margin: 0 8px; padding: 12px; border-radius: 10px; background: var(--raise); font-size: 12px; color: var(--fg-2); display: grid; gap: 8px; }
+.note b { color: var(--fg); font-weight: 600; }
+.note button { justify-self: start; }
+
+main { padding: 20px 28px 64px; padding-right: max(28px, env(safe-area-inset-right)); display: grid; gap: 22px; align-content: start; min-width: 0; }
+.strip { display: flex; flex-wrap: wrap; gap: 8px 32px; align-items: baseline; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.strip div { display: grid; }
+.strip b { font-size: 22px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.strip span { color: var(--fg-2); font-size: 12px; }
+.strip .hl b { color: var(--accent); }
+.strip .sp { flex: 1; }
+.btn { font: 600 13px var(--sans); border-radius: 8px; border: 1px solid var(--line); background: var(--raise); color: var(--fg); padding: 7px 12px; cursor: pointer; }
+.btn.pri { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+.win { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { font: 600 12px var(--sans); border-radius: 99px; padding: 6px 12px; border: 1px solid var(--line); background: none; color: var(--fg-2); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.chip:hover { color: var(--fg); }
+.chip.on { background: var(--fg); color: var(--bg); border-color: transparent; }
+.chip .m { font-weight: 500; opacity: .7; font-variant-numeric: tabular-nums; }
+.chip.best { border-color: var(--accent); color: var(--accent); }
+.chip.best.on { background: var(--accent); color: var(--accent-ink); }
+.head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.head h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.head h2 span { color: var(--fg-2); font-weight: 500; }
+
+.wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+.vid { position: relative; aspect-ratio: 9/16; max-width: 100%; border-radius: 14px; overflow: hidden; background: var(--raise) center/cover no-repeat; color: #fff; text-decoration: none; display: flex; flex-direction: column; justify-content: flex-end; box-shadow: inset 0 0 0 1px var(--line); }
+.vid::after { content: ""; position: absolute; inset: 40% 0 0; background: linear-gradient(transparent, rgba(0,0,0,.82)); }
+.vid > * { position: relative; z-index: 1; }
+.vid .top { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; gap: 6px; }
+.vid .tag { font-size: 11px; font-weight: 700; border-radius: 99px; padding: 3px 8px; background: rgba(0,0,0,.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.vid .tag.u { background: #ffb86b; color: #241300; }
+.vid .bot { padding: 12px; display: grid; gap: 2px; }
+.vid .v { font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+.vid .s { font-size: 12px; opacity: .8; }
+.vid .reach { font-size: 12px; font-weight: 700; color: #e8c8ff; }
+.vid:hover { outline: 2px solid var(--accent); outline-offset: 2px; }
+.empty { color: var(--fg-2); padding: 40px 0; }
+.toast { position: fixed; right: max(24px, env(safe-area-inset-right)); bottom: calc(24px + env(safe-area-inset-bottom)); background: var(--fg); color: var(--bg); padding: 10px 14px; border-radius: 10px; font-weight: 600; font-size: 13px; opacity: 0; transform: translateY(8px); transition: .2s; pointer-events: none; }
+.toast.on { opacity: 1; transform: none; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 860px) {
+  .shell { grid-template-columns: 1fr; }
+  aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding-right: max(12px, env(safe-area-inset-right)); }
+  .list { grid-auto-flow: column; grid-auto-columns: 220px; overflow-x: auto; padding-bottom: 4px; }
+  main { padding: 20px max(16px, env(safe-area-inset-right)) 64px max(16px, env(safe-area-inset-left)); }
+  .wall { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside id="rail"></aside>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast"></div>
+<script src="sample-board.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtN = (n) => n == null ? "–" : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + "K" : String(n);
+const fmtX = (pct) => pct == null ? "–" : (pct / 100 >= 10 ? Math.round(pct / 100) : (pct / 100).toFixed(1)) + "×";
+const fmtDate = (s) => s ? new Date(s.length === 10 ? s + "T00:00" : s).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "–";
+const FMT = { unboxing: "Unboxing", grwm: "GRWM", review: "Review", haul: "Haul", tutorial: "Tutorial", gift_guide: "Gift guide", day_in_life: "Day in life", other: "Other", unclassified: "Unclassified" };
+const state = { creator: null, format: "all", untagged: false };
+const b = window.BOARD;
+const handleOf = (c) => Object.values(c.handles);
+
+function renderRail() {
+  const rehire = b.creators.filter((c) => c.recommendation === "rehire"), quiet = b.creators.filter((c) => c.status === "quiet");
+  $("#rail").innerHTML = `
+    <div class="camp"><b>${esc(b.campaign.brandName)}</b><span>${fmtDate(b.campaign.window.start)} – ${fmtDate(b.campaign.window.end)} · ${b.totals.creatorsTotal} creators</span></div>
+    <div class="lbl">Creators · reach</div>
+    <div class="list">
+      <button type="button" class="c ${state.creator ? "" : "on"}" data-c=""><span class="av">∗</span><span class="t"><div>All creators</div><div>${b.totals.videos} videos</div></span><span class="x"></span></button>
+      ${b.creators.map((c) => `<button type="button" class="c ${state.creator === c.name ? "on" : ""} ${c.overperformer ? "star" : ""} ${c.status}" data-c="${esc(c.name)}">
+        <span class="av">${esc(c.name[0])}</span>
+        <span class="t"><div>${esc(c.name)}</div><div>${c.status === "posted" ? `${c.videos} · ${fmtN(c.views)} views` : "Hasn't posted"}</div></span>
+        <span class="x">${c.status === "posted" ? fmtX(c.bestViewsPerFollowerPct) : ""}</span>
+      </button>`).join("")}
+    </div>
+    <div class="note">
+      ${rehire.length ? `<div><b>Rehire ${rehire.length}</b> · ${rehire.map((c) => esc(c.name.split(" ")[0])).join(", ")}</div>` : ""}
+      ${quiet.length ? `<div><b>Nudge ${quiet.length}</b> · ${quiet.map((c) => esc(c.name)).join(", ")}</div><button type="button" class="btn" data-act="nudge" data-name="${esc(quiet[0].name)}">Copy nudge</button>` : ""}
+    </div>`;
+  $("#rail").querySelectorAll("[data-c]").forEach((el) => el.onclick = () => { state.creator = el.dataset.c || null; renderRail(); renderMain(); });
+  $("#rail").querySelectorAll("[data-act]").forEach((el) => el.onclick = () => act(el.dataset.act, el.dataset.name));
+}
+
+function renderMain() {
+  const t = b.totals;
+  const cr = b.creators.find((c) => c.name === state.creator);
+  const names = Object.fromEntries(b.creators.flatMap((c) => handleOf(c).map((h) => [h, c.name])));
+  const vids = b.videos
+    .filter((v) => !cr || handleOf(cr).includes(v.creatorHandle))
+    .filter((v) => state.format === "all" || v.format === state.format)
+    .filter((v) => !state.untagged || !v.tagged)
+    .sort((a, z) => z.views - a.views);
+  const winner = b.formats.find((f) => f.winner);
+  $("#main").innerHTML = `
+    <div class="strip">
+      <div><b>${fmtN(t.views)}</b><span>views</span></div>
+      <div><b>${t.videos}</b><span>videos</span></div>
+      <div><b>${t.creatorsPosted}/${t.creatorsTotal}</b><span>posted</span></div>
+      <div class="hl"><b>${fmtN(t.untaggedViews)}</b><span>views from ${t.untaggedVideos} untagged videos</span></div>
+      <span class="sp"></span>
+      <button type="button" class="btn">Edit campaign</button>
+      <button type="button" class="btn pri">Refresh</button>
+    </div>
+    <div class="head">
+      <h2>${cr ? esc(cr.name) : "All videos"} <span>${vids.length}</span></h2>
+      <button type="button" class="chip ${state.untagged ? "on" : ""}" id="untag">Untagged only</button>
+    </div>
+    <div class="win">
+      <button type="button" class="chip ${state.format === "all" ? "on" : ""}" data-f="all">All formats</button>
+      ${b.formats.map((f) => `<button type="button" class="chip ${f.winner ? "best" : ""} ${state.format === f.format ? "on" : ""}" data-f="${f.format}">${f.winner ? "★ " : ""}${FMT[f.format] || f.format}<span class="m">${fmtX(f.avgViewsPerFollowerPct)}</span></button>`).join("")}
+    </div>
+    ${vids.length ? `<div class="wall">${vids.map((v) => `<a class="vid" href="${esc(v.url)}" target="_blank" rel="noopener" style="background-image:url('${esc(v.thumbnailUrl)}')">
+      <div class="top"><span class="tag">${v.platform === "tiktok" ? "TikTok" : "Instagram"}</span>${v.tagged ? "" : `<span class="tag u">Untagged</span>`}</div>
+      <div class="bot">
+        ${v.viewsPerFollowerPct >= 100 ? `<span class="reach">${fmtX(v.viewsPerFollowerPct)} followers</span>` : ""}
+        <span class="v">${fmtN(v.views)}</span>
+        <span class="s">${esc(names[v.creatorHandle] || "@" + v.creatorHandle)} · ${FMT[v.format] || v.format} · ${fmtDate(v.publishedAt)}</span>
+      </div>
+    </a>`).join("")}</div>` : `<div class="empty">${cr && cr.status === "quiet" ? `${esc(cr.name)} hasn't posted yet. <button type="button" class="btn" data-act="nudge" data-name="${esc(cr.name)}">Copy nudge</button>` : "No videos match these filters."}</div>`}`;
+  $("#main").querySelectorAll("[data-f]").forEach((el) => el.onclick = () => { state.format = el.dataset.f; renderMain(); });
+  $("#untag").onclick = () => { state.untagged = !state.untagged; renderMain(); };
+  $("#main").querySelectorAll("[data-act]").forEach((el) => el.onclick = () => act(el.dataset.act, el.dataset.name));
+}
+function act(kind, name) {
+  const first = name.split(" ")[0], brand = b.campaign.brandName;
+  const text = kind === "nudge"
+    ? `Hey ${first}! Quick check-in on the ${brand} campaign: we haven't seen a post yet. Anything you need from us to get it live this week?`
+    : `Hey ${first}! Your ${brand} video crushed it, way past your follower count. We'd love to book you for the next drop. Interested?`;
+  const done = () => { const t = $("#toast"); t.textContent = `Copied message for ${first}`; t.classList.add("on"); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("on"), 1800); };
+  navigator.clipboard ? navigator.clipboard.writeText(text).then(done, done) : done();
+}
+renderRail(); renderMain();
+</script>
+</body>
+</html>

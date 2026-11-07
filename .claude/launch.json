@@ -1,6 +1,28 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "board", "runtimeExecutable": ".venv/bin/uvicorn", "runtimeArgs": ["app.server:app", "--reload", "--port", "8000"], "port": 8000 }
+    {
+      "name": "board",
+      "runtimeExecutable": ".venv/bin/uvicorn",
+      "runtimeArgs": [
+        "app.server:app",
+        "--reload",
+        "--port",
+        "8000"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "prototypes",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8010",
+        "--directory",
+        "web/prototypes"
+      ],
+      "port": 8010
+    }
   ]
 }
