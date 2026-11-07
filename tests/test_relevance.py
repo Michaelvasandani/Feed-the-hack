@@ -31,25 +31,25 @@ def tmp_cache(tmp_path, monkeypatch):
 
 
 def test_drops_off_brand_keeps_tagged_and_roster(monkeypatch):
-    fake = FakeJev({"caption 1": 0.9, "caption 2": 0.1})
+    fake = FakeJev({"caption 1": 0.9, "caption 2": 0.1, "caption 4": 0.9})
     monkeypatch.setattr(classify, "_jev_client", fake)
     doc = {"videos": [vid(1), vid(2), vid(3, tagged=True), vid(4, handle="Hired")]}
     out = relevance.filter_relevant(CAMP, doc, backend="jev")
     assert [v["id"] for v in out["videos"]] == ["v1", "v3", "v4"]
     assert out["droppedOffBrand"] == 1
     assert out["videos"][0]["brandRelevance"] == 0.9
-    assert len(fake.calls) == 2 and "AI app builder" in fake.calls[0]["brand"]
+    assert len(fake.calls) == 3 and "AI app builder" in fake.calls[0]["brand"]
 
 
-def test_api_error_keeps_video(monkeypatch):
+def test_api_error_keeps_candidate_out_of_totals(monkeypatch):
     class Boom:
         def system_one(self, **_):
             raise RuntimeError("down")
     monkeypatch.setattr(classify, "_jev_client", Boom())
     out = relevance.filter_relevant(CAMP, {"videos": [vid(1)]}, backend="jev")
-    assert len(out["videos"]) == 1 and out["droppedOffBrand"] == 0
+    assert not out["videos"] and len(out["candidates"]) == 1 and out["droppedOffBrand"] == 0
 
 
-def test_no_model_keeps_everything():
+def test_no_model_requires_actual_brand_evidence():
     out = relevance.filter_relevant(CAMP, {"videos": [vid(1)]}, backend="keyword")
-    assert len(out["videos"]) == 1
+    assert not out["videos"] and len(out["candidates"]) == 1

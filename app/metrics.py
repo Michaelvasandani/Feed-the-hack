@@ -1,5 +1,6 @@
 """Part 3: campaign.json + videos.labeled.json -> board.json. Pure functions, no API calls."""
 from statistics import mean, median
+from app.search import handle
 
 UNCLASSIFIED = "unclassified"
 # Formats that can't be a brief recommendation, so never "win".
@@ -22,7 +23,7 @@ def _median(vals):
 
 def in_window(video, window):
     day = (video.get("publishedAt") or "")[:10]
-    return bool(day) and window["start"] <= day <= window.get("end", "9999-12-31")
+    return bool(day) and window["start"] <= day <= (window.get("end") or "9999-12-31")
 
 
 def build_totals(videos, creators):
@@ -43,21 +44,23 @@ def build_totals(videos, creators):
 
 def discovered_creators(campaign, videos):
     """Creators who posted about the brand but aren't on the roster, one per handle across platforms."""
-    roster = {(p, h.lower()) for c in campaign.get("creators") or [] for p, h in c["handles"].items()}
+    roster = {(p, handle(h)) for c in campaign.get("creators") or [] for p, h in c["handles"].items()}
     found = {}
     for v in videos:
-        h = v["creatorHandle"].lower()
+        h = handle(v["creatorHandle"])
         if (v["platform"], h) not in roster:
             found.setdefault(h, {"name": "@" + v["creatorHandle"], "handles": {}, "discovered": True})
             found[h]["handles"].setdefault(v["platform"], v["creatorHandle"])
     return list(found.values())
 
 
-def build_creators(campaign, videos):
+def build_creators(campaign, videos, search=None, candidates=()):
     out = []
     for c in [*(campaign.get("creators") or []), *discovered_creators(campaign, videos)]:
-        keys = {(p, h.lower()) for p, h in c["handles"].items()}
-        mine = [v for v in videos if (v["platform"], v["creatorHandle"].lower()) in keys]
+        keys = {(p, handle(h)) for p, h in c["handles"].items()}
+        mine = [v for v in videos if (v["platform"], handle(v["creatorHandle"])) in keys]
+        uncertain = bool(search and not search.get("rosterComplete", True)) or any(
+            (v["platform"], handle(v["creatorHandle"])) in keys for v in candidates)
         # Followers: largest count seen per platform, summed across platforms.
         per_platform = {}
         for v in mine:
@@ -65,12 +68,14 @@ def build_creators(campaign, videos):
                 per_platform[v["platform"]] = max(per_platform.get(v["platform"], 0), v["followers"])
         vpf = [v.get("viewsPerFollowerPct") for v in mine if v.get("viewsPerFollowerPct") is not None]
         best = round(max(vpf), 2) if vpf else None
-        status = "posted" if mine else "quiet"
+        status = "posted" if mine else "unknown" if uncertain else "quiet"
         overperformer = best is not None and best >= 100
         if c.get("discovered"):
             recommendation = "recruit" if overperformer else "keep"
         else:
             recommendation = "nudge" if status == "quiet" else "rehire" if overperformer else "keep"
+        if uncertain:
+            recommendation = None
         out.append({
             "name": c["name"],
             "handles": c["handles"],
@@ -113,8 +118,10 @@ def build_board(campaign, labeled):
     window = campaign["window"]
     videos = [dict(v, format=v.get("format") or UNCLASSIFIED)
               for v in labeled["videos"] if in_window(v, window)]
-    videos.sort(key=lambda v: -(v.get("views") or 0))
-    creators = build_creators(campaign, videos)
+    videos.sort(key=lambda v: (-(v.get("searchScore") or 0), -(v.get("views") or 0)))
+    candidates = labeled.get("candidates", [])
+    search = labeled.get("search", {})
+    creators = build_creators(campaign, videos, search, candidates)
     return {
         "campaign": {"id": campaign["id"], "brandName": campaign["brand"]["name"],
                      "brief": campaign.get("brief", ""), "window": window,
@@ -123,6 +130,8 @@ def build_board(campaign, labeled):
         "creators": creators,
         "formats": build_formats(videos),
         "videos": videos,
+        "candidates": candidates,
+        "search": search,
     }
 
 

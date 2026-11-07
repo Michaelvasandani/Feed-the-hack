@@ -27,4 +27,8 @@ Tests: `.venv/bin/python -m pytest -q`
 
 Format labels: with `TYPESAFE_API_KEY` set, Jev labels each video and returns a probability per format. Answers with confidence below `JEV_ESCALATE_BELOW` (default 0.5) go to Claude when `ANTHROPIC_API_KEY` is also set. Force a backend with `CLASSIFY_BACKEND=jev|claude|keyword`. With no keys it uses keyword matching.
 
-Notes: visual product search (`productImageUrls`) works but the Oriane query takes ~80s. Format labels are cached by video id in `.cache/formats.json`; only model labels are cached (per backend), so adding a key later upgrades heuristic ones.
+Search now retrieves separate relevance, recent-post, brand-tag, and optional visual lists for each platform, merges them with reciprocal rank fusion, checks brand relevance, and ranks the verified matches against the campaign brief. The default feed is **Best match**, with **Most viewed** available separately. Discovery defaults to at most three videos per creator/platform; ambiguous and visual-only candidates appear separately and do not affect totals. See [the algorithm, budgets, and validation](docs/search-ranking.md).
+
+`discovery.maxVideos` limits the final discovered shortlist. Optional `maxCandidates` sets the retrieval pool (default three times that limit, capped at 2,000), and `maxPerCreator` changes the diversity limit (default 3). Accepted roster videos are preserved independently of those shortlist limits. Partial search coverage and omitted matches are disclosed on the board.
+
+Visual product queries can be slow; source review is required for visual-only candidates. Format labels remain cached by video ID/backend in `.cache/formats.json`. Brand relevance uses a separate versioned cache including campaign and text changes. Sample mode always uses offline keyword labels, even when model keys are configured.

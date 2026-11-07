@@ -13,6 +13,7 @@ from app.classify import classify_videos
 from app.fetch import OrianeError, fetch_videos
 from app.metrics import build_board
 from app.relevance import filter_relevant
+from app.search import rank_videos
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "fixtures"
@@ -28,9 +29,10 @@ class BoardRequest(BaseModel):
 
 def run_pipeline(campaign, live):
     videos = fetch_videos(campaign) if live else json.loads((FIXTURES / "videos.json").read_text())
-    if campaign.get("discover"):
-        videos = filter_relevant(campaign, videos)
-    labeled = classify_videos(videos)
+    if live:
+        videos = rank_videos(campaign, filter_relevant(campaign, videos))
+    # Sample mode must remain offline even when live model keys are configured.
+    labeled = classify_videos(videos, backend=None if live else "keyword")
     board = build_board(campaign, labeled)
     OUT.mkdir(exist_ok=True)
     for name, doc in [("videos.json", videos), ("videos.labeled.json", labeled), ("board.json", board)]:
@@ -64,3 +66,5 @@ def board(req: BoardRequest):
         return run_pipeline(camp, req.live)
     except OrianeError as e:
         raise HTTPException(502, str(e)) from e
+    except (ValueError, KeyError, TypeError) as e:
+        raise HTTPException(400, f"Invalid campaign: {e}") from e

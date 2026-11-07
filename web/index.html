@@ -127,14 +127,14 @@ tr:last-child td { border-bottom: 0; }
         <div class="disc" id="disc">
           <div><label for="min-f">Min followers</label><input id="min-f" type="number" min="0" placeholder="1000"></div>
           <div><label for="max-f">Max followers</label><input id="max-f" type="number" min="0" placeholder="no limit"></div>
-          <div><label for="max-v">Videos to pull</label><input id="max-v" type="number" min="1" max="2000" placeholder="200"><div class="hint">Top videos by views.</div></div>
+          <div><label for="max-v">Videos to return</label><input id="max-v" type="number" min="1" max="2000" placeholder="200"><div class="hint">Ranked by brand relevance and brief fit; up to 3 per discovered creator.</div></div>
           <div style="grid-column:1/-1"><label for="exclude">Exclude handles</label><input id="exclude" placeholder="founder, celebrity, partner accounts"><div class="hint">Comma-separated, any platform.</div></div>
         </div>
       </div>
       <div class="full"><label for="creators">Creators you hired <span class="muted" id="creators-opt" style="font-weight:400"></span></label><textarea id="creators" rows="6"></textarea>
         <div class="hint">One per line: <code>Name, tt:handle, ig:handle</code>. A bare <code>@handle</code> is treated as TikTok. These get posted/quiet tracking.</div></div>
       <div class="full"><label for="images">Product image URLs (optional)</label><textarea id="images" rows="2" placeholder="https://…/product.png"></textarea>
-        <div class="hint">Finds videos that show the product without naming it. Adds about a minute to the search.</div></div>
+        <div class="hint">Finds visual candidates for review. Similar-looking products are kept separate from campaign totals.</div></div>
       <div class="full row">
         <button type="submit" class="primary" id="run">Build board (live)</button>
         <button type="button" id="sample">Load sample data</button>
@@ -158,6 +158,7 @@ const MATCH_LABEL = { transcript: "said it", onScreenText: "shown on screen", ca
 
 let campaignId = "campaign";
 let feedFilter = "all";
+let feedSort = "relevance";
 let lastBoard = null;
 
 function creatorsToText(creators) {
@@ -252,15 +253,18 @@ function render(b) {
 
   const winner = b.formats.find((f) => f.winner);
   const quiet = b.creators.filter((c) => c.status === "quiet");
+  const unknown = b.creators.filter((c) => c.status === "unknown");
   const stars = b.creators.filter((c) => c.overperformer && !c.discovered);
   const recruits = b.creators.filter((c) => c.recommendation === "recruit");
   const found = t.creatorsDiscovered || 0;
   const creatorStat = t.creatorsTotal
-    ? stat("Creators posted", `${t.creatorsPosted}<span class="muted" style="font-size:18px"> / ${t.creatorsTotal}</span>`, [quiet.length ? `${quiet.length} went quiet` : "everyone posted", found ? `+${found} found automatically` : ""].filter(Boolean).join(" · "))
+    ? stat("Creators posted", `${t.creatorsPosted}<span class="muted" style="font-size:18px"> / ${t.creatorsTotal}</span>`, [unknown.length ? `${unknown.length} not yet verified` : quiet.length ? `${quiet.length} have no matching posts` : "everyone posted", found ? `+${found} found automatically` : ""].filter(Boolean).join(" · "))
     : stat("Creators found", found, `${recruits.length} beat their follower count`);
   const dropped = t.droppedOffBrand ? `<div class="hint" style="margin:-4px 0 10px">Left out ${t.droppedOffBrand} found video${t.droppedOffBrand === 1 ? "" : "s"} that only used the word, not the brand.</div>` : "";
 
   $("#board").innerHTML = `
+    ${b.search?.partial ? '<div class="status">Search coverage is limited by the candidate budget or an incomplete request. Totals describe the verified results returned, not every post on the platforms.</div>' : ""}
+    ${b.search?.omittedByShortlist ? `<div class="hint">Showing ${b.search.selectedMatches} of ${b.search.verifiedMatches} verified matches after the result and creator-diversity limits.</div>` : ""}
     <div class="totals">
       ${stat("Views", fmtN(t.views), `${fmtN(t.likes)} likes · ${fmtN(t.shares)} shares`)}
       ${stat("Videos", t.videos, `${fmtN(t.comments)} comments`)}
@@ -276,7 +280,7 @@ function render(b) {
         </table></div>
       </div>
       <div class="card">
-        <h2>What format won</h2>
+        <h2>Best format in these results</h2>
         ${winner ? `<div class="callout">Brief more ${esc(fmtName(winner.format))}s: ${fmtPct(winner.avgViewsPerFollowerPct)} avg views per follower</div>` : `<div class="muted" style="margin-bottom:14px">Need 2+ classified videos of a format to call a winner.</div>`}
         ${formatBars(b.formats)}
         <div class="hint" style="margin-top:12px">Average views as a % of the creator's followers. 100% = the video reached as many people as follow them.</div>
@@ -290,13 +294,16 @@ function render(b) {
     <div>
       <div class="feed-head">
         <div><h2>Videos</h2>${dropped}</div>
+        <label>Sort <select id="feed-sort"><option value="relevance" ${feedSort === "relevance" ? "selected" : ""}>Best match</option><option value="views" ${feedSort === "views" ? "selected" : ""}>Most viewed</option></select></label>
         <div class="seg" id="seg">
           ${[["all", "All"], ["untagged", "Untagged only"], ...(found ? [["new", "New creators"]] : [])].map(([k, l]) => `<button data-f="${k}" class="${feedFilter === k ? "on" : ""}">${l}</button>`).join("")}
         </div>
       </div>
       <div class="feed" id="feed"></div>
-    </div>`;
+    </div>
+    ${(b.candidates || []).length ? `<details class="card"><summary>${b.candidates.length} candidates need review · excluded from totals</summary><ul>${b.candidates.map((v) => `<li><a href="${esc(v.url)}" target="_blank" rel="noopener">@${esc(v.creatorHandle)}</a> — ${esc(v.relevanceReason)}</li>`).join("")}</ul></details>` : ""}`;
   $("#seg").onclick = (e) => { if (e.target.dataset.f) { feedFilter = e.target.dataset.f; render(lastBoard); } };
+  $("#feed-sort").onchange = (e) => { feedSort = e.target.value; renderFeed(lastBoard); };
   renderFeed(b);
 }
 function stat(l, v, s, accent) {
@@ -328,6 +335,7 @@ function formatBars(formats) {
 function renderFeed(b) {
   const newHandles = new Set(b.creators.filter((c) => c.discovered).flatMap((c) => Object.values(c.handles).map((h) => h.toLowerCase())));
   const vids = b.videos.filter((v) => feedFilter === "all" || (feedFilter === "untagged" ? !v.tagged : newHandles.has(v.creatorHandle.toLowerCase())));
+  if (feedSort === "views") vids.sort((a, b) => (b.views || 0) - (a.views || 0));
   if (!vids.length) { $("#feed").innerHTML = `<div class="empty">No videos.</div>`; return; }
   const names = Object.fromEntries(b.creators.flatMap((c) => Object.values(c.handles).map((h) => [h.toLowerCase(), c.name])));
   $("#feed").innerHTML = vids.map((v) => {
@@ -342,6 +350,7 @@ function renderFeed(b) {
         <div class="row"><span class="badge b-fmt">${esc(fmtName(v.format))}</span>${v.tagged ? "" : '<span class="badge b-untag">Untagged</span>'}${v.viewsPerFollowerPct >= 100 ? `<span class="badge b-star">${fmtPct(v.viewsPerFollowerPct)} of followers</span>` : ""}</div>
         ${!v.tagged && why.length ? `<div class="why">Found because: ${esc(why.join(", "))}</div>` : ""}
         ${v.formatReason ? `<div class="reason">${esc(v.formatReason)}</div>` : ""}
+        ${v.relevanceReason ? `<div class="reason">${esc(v.relevanceReason)}</div>` : ""}
       </div>
     </a>`;
   }).join("");
