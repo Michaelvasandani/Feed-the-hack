@@ -87,9 +87,20 @@ tr:last-child td { border-bottom: 0; }
 .seg button.on { background: var(--surface-2); font-weight: 600; }
 .status { padding: 10px 12px; border-radius: 8px; background: var(--surface-2); }
 .status.err { background: var(--warn-soft); color: var(--warn); }
+.insights { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; }
+.insights .headline { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 14px; }
+.insights .eyebrow { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.actions { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.actions li { display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: start; }
+.actions .t { font-weight: 600; }
+.actions .d { color: var(--muted); font-size: 13px; }
+.b-brief { background: var(--good-soft); color: var(--good); }
+.b-watch { background: var(--surface-2); color: var(--muted); }
+.brief-box { background: var(--surface-2); border-radius: 8px; padding: 12px 14px; white-space: pre-wrap; }
+.vid .hook { font-size: 12px; font-style: italic; }
 .empty { text-align: center; padding: 40px; color: var(--muted); }
 @media (max-width: 860px) {
-  .two, .form { grid-template-columns: 1fr; }
+  .two, .form, .insights { grid-template-columns: 1fr; }
   .totals { grid-template-columns: repeat(2, 1fr); }
   .tbl-wrap { overflow-x: auto; }
 }
@@ -226,6 +237,7 @@ function render(b) {
       ${stat("Creators posted", `${t.creatorsPosted}<span class="muted" style="font-size:18px"> / ${t.creatorsTotal}</span>`, quiet.length ? `${quiet.length} went quiet` : "everyone posted")}
       ${stat("Untagged mentions", t.untaggedVideos, `${fmtN(t.untaggedViews)} views you'd have missed`, true)}
     </div>
+    ${insightsCard(b.insights)}
     <div class="two">
       <div class="card">
         <h2>Creators</h2>
@@ -254,8 +266,30 @@ function render(b) {
       </div>
       <div class="feed" id="feed"></div>
     </div>`;
+  if ($("#copy-brief")) $("#copy-brief").onclick = () => navigator.clipboard?.writeText(b.insights.nextBrief).then(() => setStatus("Brief copied to clipboard."));
   $("#seg").onclick = (e) => { if (e.target.dataset.f) { feedFilter = e.target.dataset.f; render(lastBoard); } };
   renderFeed(b);
+}
+const SOURCE_LABEL = { claude: "Claude", gmi: "GMI Cloud", rules: "board rules" };
+const KIND_LABEL = { brief: "Brief", rehire: "Rehire", nudge: "Nudge", watch: "Watch" };
+const KIND_BADGE = { brief: "b-brief", rehire: "b-star", nudge: "b-quiet", watch: "b-watch" };
+function insightsCard(ins) {
+  if (!ins) return "";
+  const by = SOURCE_LABEL[ins.insightsSource] || ins.insightsSource;
+  const model = ins.insightsModel ? ` · ${esc(ins.insightsModel.split("/").pop())}` : "";
+  const sig = lastBoard.videos.find((v) => v.signals)?.signals.signalsSource;
+  return `<div class="card insights">
+    <div>
+      <div class="eyebrow"><span>What to do next</span></div>
+      <p class="headline">${esc(ins.headline)}</p>
+      <ul class="actions">${ins.actions.map((a) => `<li><span class="badge ${KIND_BADGE[a.kind] || "b-watch"}">${KIND_LABEL[a.kind] || esc(a.kind)}</span><div><div class="t">${esc(a.title)}</div><div class="d">${esc(a.detail)}</div></div></li>`).join("")}</ul>
+    </div>
+    <div>
+      <div class="eyebrow"><span>Draft next brief</span><button type="button" class="act" id="copy-brief">Copy</button></div>
+      <div class="brief-box">${esc(ins.nextBrief)}</div>
+      <div class="hint" style="margin-top:10px">Written by ${esc(by)}${model}${sig ? ` · video signals: ${esc(SOURCE_LABEL[sig] || sig)}` : ""}</div>
+    </div>
+  </div>`;
 }
 function stat(l, v, s, accent) {
   return `<div class="card stat ${accent ? "accent" : ""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s || ""}</div></div>`;
@@ -297,6 +331,7 @@ function renderFeed(b) {
         <div class="who">${esc(names[v.creatorHandle.toLowerCase()] || "@" + v.creatorHandle)} <span class="muted" style="font-weight:400">· ${fmtDate(v.publishedAt)}</span></div>
         <div class="row"><span class="badge b-fmt">${esc(fmtName(v.format))}</span>${v.tagged ? "" : '<span class="badge b-untag">Untagged</span>'}${v.viewsPerFollowerPct >= 100 ? `<span class="badge b-star">${fmtPct(v.viewsPerFollowerPct)} of followers</span>` : ""}</div>
         ${!v.tagged && why.length ? `<div class="why">Found because: ${esc(why.join(", "))}</div>` : ""}
+        ${v.signals?.hook ? `<div class="hook">“${esc(v.signals.hook)}”</div>` : ""}
         ${v.formatReason ? `<div class="reason">${esc(v.formatReason)}</div>` : ""}
       </div>
     </a>`;
@@ -315,7 +350,7 @@ $("#form").onsubmit = (e) => {
   const campaign = readForm();
   if (!campaign.creators.length) return setStatus("Add at least one creator.", true);
   const slow = campaign.brand.productImageUrls.length ? " (visual search on, ~1–2 min)" : "";
-  load(fetch("/api/board", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaign, live: true }) }), "Pulling videos from TikTok & Instagram and classifying formats…" + slow);
+  load(fetch("/api/board", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaign, live: true }) }), "Pulling videos from TikTok & Instagram, classifying formats and writing insights…" + slow);
 };
 $("#sample").onclick = () => load(fetch("/api/sample-board"), "Loading sample…");
 

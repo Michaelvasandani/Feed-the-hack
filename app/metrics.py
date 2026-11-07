@@ -99,6 +99,7 @@ def build_board(campaign, labeled):
     creators = build_creators(campaign, videos)
     return {
         "campaign": {"id": campaign["id"], "brandName": campaign["brand"]["name"],
+                     "handles": campaign["brand"].get("handles", {}),
                      "brief": campaign.get("brief", ""), "window": window},
         "totals": build_totals(videos, creators),
         "creators": creators,

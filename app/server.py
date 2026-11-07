@@ -1,4 +1,4 @@
-"""Chains the parts: campaign -> fetch -> classify -> metrics -> board, and serves the UI.
+"""Chains the parts: campaign -> fetch -> classify -> metrics -> insights -> board, and serves the UI.
 
 Run: .venv/bin/uvicorn app.server:app --reload --port 8000
 """
@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from app.classify import classify_videos
 from app.fetch import OrianeError, fetch_videos
+from app.insights import add_insights
 from app.metrics import build_board
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -28,7 +29,7 @@ class BoardRequest(BaseModel):
 def run_pipeline(campaign, live):
     videos = fetch_videos(campaign) if live else json.loads((FIXTURES / "videos.json").read_text())
     labeled = classify_videos(videos)
-    board = build_board(campaign, labeled)
+    board = add_insights(build_board(campaign, labeled))
     OUT.mkdir(exist_ok=True)
     for name, doc in [("videos.json", videos), ("videos.labeled.json", labeled), ("board.json", board)]:
         (OUT / name).write_text(json.dumps(doc, indent=1, ensure_ascii=False))
