@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Ban, Check, Clapperboard, Copy, Download, Film, Quote, RefreshCw, Sparkles, Target } from "lucide-react";
+import { Ban, Check, Clapperboard, Copy, Download, RefreshCw, Sparkles, Target } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, type NextBrief } from "./lib";
 import type { Board } from "./types";
@@ -44,8 +44,7 @@ export default function Brief({ board }: { board: Board }) {
       />
       {err && <div className="text-rose text-sm mb-4">{err}</div>}
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6">
-        <Card className="p-6 sm:p-8 grad-border relative overflow-hidden">
-          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-amber/15 blur-3xl" />
+        <Card className="p-6 sm:p-8">
           {!brief ? (
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-sm text-soft"><Spinner /> Reading {board.totals.videos} videos and their comments…</div>
@@ -57,10 +56,10 @@ export default function Brief({ board }: { board: Board }) {
                 {win && <FormatChip format={win.format as Format} />}
                 <span className="text-xs text-mute">for {board.campaign.brandName}</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight mb-6">{brief.headline}</h2>
-              <div className="rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.08] p-4 mb-6">
-                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-mute mb-1.5"><Quote size={12} /> Open with</div>
-                <div className="font-serif italic text-xl sm:text-2xl text-white leading-snug">“{brief.hook}”</div>
+              <h2 className="text-[28px] sm:text-[34px] font-semibold tracking-[-0.03em] leading-[1.15] mb-6">{brief.headline}</h2>
+              <div className="rounded-[14px] bg-fill p-4 mb-6">
+                <div className="text-[13px] text-mute mb-1">Open with</div>
+                <div className="text-[19px] sm:text-[22px] font-medium text-fg leading-snug">“{brief.hook}”</div>
               </div>
               <List icon={Sparkles} tone="text-amber" title="Why this format" items={brief.why} />
               <List icon={Target} tone="text-mint" title="Must do" items={brief.mustDo} />
@@ -72,14 +71,14 @@ export default function Brief({ board }: { board: Board }) {
 
         <div className="space-y-6">
           <Card className="p-5 sm:p-6" delay={0.1}>
-            <div className="flex items-center gap-2 font-medium mb-3"><Clapperboard size={16} className="text-violet" /> Shot list</div>
+            <div className="flex items-center gap-2 font-medium mb-3">Shot list</div>
             {!brief ? <Shimmer className="h-40" /> : (
               <ol className="space-y-2">
                 {brief.shotList.map((s, i) => {
                   const [t, ...rest] = s.split(":");
                   return (
                     <motion.li key={i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }} className="flex gap-3 text-sm">
-                      <span className="font-mono text-[11px] text-mute w-12 shrink-0 pt-0.5">{rest.length ? t : `#${i + 1}`}</span>
+                      <span className="tabular-nums text-[11px] text-mute w-12 shrink-0 pt-0.5">{rest.length ? t : `#${i + 1}`}</span>
                       <span className="text-soft">{rest.length ? rest.join(":").trim() : s}</span>
                     </motion.li>
                   );
@@ -100,7 +99,7 @@ function List({ icon: Icon, title, items, tone }: { icon: typeof Sparkles; title
       <div className="flex items-center gap-1.5 text-sm font-medium mb-2"><Icon size={15} className={tone} /> {title}</div>
       <ul className="space-y-1.5">
         {items.map((x, i) => (
-          <li key={i} className="flex gap-2.5 text-sm text-soft leading-relaxed"><span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-white/40" />{x}</li>
+          <li key={i} className="flex gap-2.5 text-sm text-soft leading-relaxed"><span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-fill" />{x}</li>
         ))}
       </ul>
     </div>
@@ -145,16 +144,16 @@ function SampleVideo({ prompt, boardId }: { prompt: string | null; boardId: stri
 
   return (
     <Card className="p-5 sm:p-6" delay={0.2}>
-      <div className="flex items-center gap-2 font-medium mb-1"><Film size={16} className="text-rose" /> Sample video</div>
+      <div className="flex items-center gap-2 font-medium mb-1">Sample video</div>
       <p className="text-xs text-mute mb-4">Show creators the vibe: an 8-second AI-generated mock of this brief, rendered on GMI Cloud.</p>
-      <div className="relative mx-auto w-full max-w-[240px] aspect-[9/16] rounded-2xl overflow-hidden bg-panel-2 ring-1 ring-white/10 grid place-items-center">
+      <div className="relative mx-auto w-full max-w-[240px] aspect-[9/16] rounded-[16px] overflow-hidden bg-fill grid place-items-center">
         {state.status === "done" && state.url ? (
           <video src={state.url} autoPlay loop muted playsInline controls className="absolute inset-0 h-full w-full object-cover" />
         ) : state.status === "queued" ? (
           <div className="text-center px-4">
             <div className="relative mx-auto mb-3 h-12 w-12">
-              <div className="absolute inset-0 rounded-full border-2 border-white/10" />
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-rose border-r-violet animate-spin" />
+              <div className="absolute inset-0 rounded-full border-2 border-fill-2" />
+              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent animate-spin" />
             </div>
             <div className="text-sm text-soft">Rendering… {elapsed}s</div>
             <div className="text-[11px] text-mute mt-1">usually 1–3 min</div>
@@ -163,15 +162,15 @@ function SampleVideo({ prompt, boardId }: { prompt: string | null; boardId: stri
           <div className="text-center px-5">
             <Clapperboard size={28} className="mx-auto text-mute mb-3" />
             {prompt && <div className="text-[11px] text-mute line-clamp-6 mb-4">{prompt}</div>}
-            <Button onClick={start} disabled={!prompt} className="text-xs !px-3 !py-2"><Sparkles size={14} /> Generate</Button>
+            <Button onClick={start} disabled={!prompt} className="text-xs !px-3 !py-2">Generate</Button>
             {state.status === "error" && <div className="text-[11px] text-rose mt-2">{state.msg}</div>}
           </div>
         )}
       </div>
       {state.status === "done" && state.url && (
         <div className="mt-3 flex justify-center gap-4">
-          <a href={state.url} download className="inline-flex items-center gap-1.5 text-xs text-soft hover:text-white"><Download size={13} /> Download MP4</a>
-          <button onClick={start} disabled={!prompt} className="inline-flex items-center gap-1.5 text-xs text-soft hover:text-white cursor-pointer disabled:opacity-40"><RefreshCw size={13} /> Generate another</button>
+          <a href={state.url} download className="inline-flex items-center gap-1.5 text-xs text-accent hover:underline"><Download size={13} /> Download MP4</a>
+          <button onClick={start} disabled={!prompt} className="inline-flex items-center gap-1.5 text-xs text-accent hover:underline cursor-pointer disabled:opacity-40"><RefreshCw size={13} /> Generate another</button>
         </div>
       )}
     </Card>

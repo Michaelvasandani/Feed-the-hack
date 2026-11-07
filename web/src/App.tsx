@@ -47,7 +47,7 @@ export default function App() {
   };
 
   return (
-    <div className="noise">
+    <div>
       <AnimatePresence mode="wait">
         <motion.div key={view.kind} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
           {view.kind === "setup" && <Setup onRun={start} recent={recent} onOpen={(id) => api.board(id).then((board) => setView({ kind: "board", board }))} />}
