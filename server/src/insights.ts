@@ -152,7 +152,13 @@ export async function nextBrief(board: Board): Promise<NextBrief> {
 export async function generateSampleVideo(prompt: string) {
   return submitGeneration(env.videoModel, { prompt, aspect_ratio: "9:16", duration: "8", resolution: "720p" });
 }
-export const sampleVideoStatus = getGeneration;
+/** Models disagree on outcome shape (Veo: video_url, Kling: media_urls[].url) — normalize to one URL. */
+export async function sampleVideoStatus(id: string) {
+  const r = await getGeneration(id);
+  const o = r.outcome ?? {};
+  const videoUrl: string | null = o.video_url ?? o.media_urls?.[0]?.url ?? o.videos?.[0]?.url ?? null;
+  return { status: r.status, videoUrl };
+}
 
 // ---------- Ask the board (natural-language Q&A over campaign data) ----------
 

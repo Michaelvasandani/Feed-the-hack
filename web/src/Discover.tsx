@@ -1,0 +1,71 @@
+import { ExternalLink, Mail, RefreshCw, Tag, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { api, compact, mult, type Prospect } from "./lib";
+import type { Board } from "./types";
+import { Avatar, Button, Card, Pill, SectionTitle, Shimmer } from "./ui";
+
+export default function Discover({ board }: { board: Board }) {
+  const [list, setList] = useState<Prospect[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const load = (refresh = false) => {
+    setList(null);
+    setErr(null);
+    api.discover(board.campaign.id, refresh).then(setList).catch((e) => setErr(e.message));
+  };
+  useEffect(() => load(), [board.campaign.id]);
+
+  return (
+    <div>
+      <SectionTitle
+        eyebrow="Discover"
+        title={<>Creators already talking about <span className="font-serif italic font-normal grad-text">{board.campaign.brandName}</span>, not on your roster</>}
+        right={<Button variant="ghost" className="!py-1.5 text-xs" onClick={() => load(true)}><RefreshCw size={14} /> Rescan</Button>}
+      />
+      <p className="text-sm text-mute -mt-2 mb-6 max-w-2xl">
+        Organic fans who said or showed the brand in this window, ranked by how far their video outran their follower count. They already like you, so they're easy to recruit.
+      </p>
+      {err && <div className="text-rose text-sm">{err}</div>}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {!list && !err && Array.from({ length: 6 }, (_, i) => <Shimmer key={i} className="h-44" />)}
+        {list?.map((p, i) => (
+          <Card key={p.handle} className="p-4 flex gap-4" delay={i * 0.04}>
+            <a href={p.topVideo.url ?? undefined} target="_blank" rel="noreferrer" className="relative w-24 shrink-0 aspect-[9/16] rounded-xl overflow-hidden bg-panel-2 ring-1 ring-white/10 group">
+              {p.topVideo.thumbnailUrl && <img src={p.topVideo.thumbnailUrl} alt="" className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition duration-500" />}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              <div className="absolute bottom-1.5 left-2 text-sm font-semibold">{compact(p.topVideo.views)}</div>
+              <ExternalLink size={12} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition" />
+            </a>
+            <div className="min-w-0 flex-1 flex flex-col">
+              <div className="flex items-center gap-2">
+                <Avatar src={p.profilePictureUrl} name={p.displayName ?? p.handle} size={30} />
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{p.displayName ?? p.handle}</div>
+                  <div className="text-[11px] text-mute truncate">{p.platform === "tiktok" ? "TikTok" : "IG"} @{p.handle}</div>
+                </div>
+              </div>
+              <div className="mt-3 flex items-baseline gap-3">
+                <div><span className="text-lg font-semibold font-mono grad-text">{mult(p.bestViewsPerFollowerPct)}</span> <span className="text-[11px] text-mute">followers</span></div>
+                <div className="text-xs text-mute">{compact(p.followers)} fol.</div>
+              </div>
+              {p.bio && <div className="mt-1.5 text-[11px] text-mute line-clamp-2">{p.bio}</div>}
+              <div className="mt-auto pt-3 flex flex-wrap items-center gap-1.5">
+                {!p.tagged && <Pill tone="amber"><Tag size={10} /> Untagged fan</Pill>}
+                {p.publicEmail ? (
+                  <a href={`mailto:${p.publicEmail}?subject=${encodeURIComponent(`${board.campaign.brandName} x @${p.handle}`)}`} className="inline-flex items-center gap-1 rounded-full bg-mint/15 px-2 py-0.5 text-[11px] font-medium text-mint ring-1 ring-inset ring-mint/25 hover:bg-mint/25">
+                    <Mail size={10} /> Email
+                  </a>
+                ) : (
+                  <a href={p.platform === "tiktok" ? `https://www.tiktok.com/@${p.handle}` : `https://www.instagram.com/${p.handle}/`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-soft ring-1 ring-inset ring-white/10 hover:bg-white/10">
+                    <UserPlus size={10} /> DM
+                  </a>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+      {list && !list.length && <div className="text-center text-mute py-16">No organic creators found in this window.</div>}
+    </div>
+  );
+}
+

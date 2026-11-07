@@ -38,7 +38,29 @@ const wrap = (fn: (req: express.Request, res: Response) => Promise<unknown>) => 
 
 app.get("/api/health", (_req, res) => res.json({ ok: true, oriane: !!env.oriane, gmi: !!env.gmi, model: env.llmModel }));
 
+/** Same-origin image proxy so WebGL can texture Oriane thumbnails (content images lack CORS headers). */
+app.get("/api/img", wrap(async (req, res) => {
+  const u = new URL(String(req.query.u ?? ""));
+  if (u.protocol !== "https:" || !u.hostname.endsWith(".oriane.xyz")) return res.status(400).end();
+  const r = await fetch(u);
+  if (!r.ok) return res.status(r.status).end();
+  res.setHeader("Content-Type", r.headers.get("content-type") ?? "image/webp");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.end(Buffer.from(await r.arrayBuffer()));
+}));
+
 app.get("/api/demo-campaign", (_req, res) => res.json(JSON.parse(readFileSync(resolve(ROOT, "fixtures/campaign.json"), "utf8"))));
+
+/** Thumbnails for the landing-page 3D wall: from saved boards, falling back to the fixtures. */
+app.get("/api/showcase", (_req, res) => {
+  const dir = resolve(DATA, "boards");
+  const urls = new Set<string>();
+  for (const f of existsSync(dir) ? readdirSync(dir) : []) {
+    for (const v of (JSON.parse(readFileSync(resolve(dir, f), "utf8")) as Board).videos) if (v.thumbnailUrl) urls.add(v.thumbnailUrl);
+  }
+  for (const v of (JSON.parse(readFileSync(resolve(ROOT, "fixtures/videos.json"), "utf8")) as VideosFile).videos) if (v.thumbnailUrl) urls.add(v.thumbnailUrl);
+  res.json([...urls].slice(0, 28));
+});
 
 app.get("/api/boards", (_req, res) => {
   const dir = resolve(DATA, "boards");
@@ -49,6 +71,11 @@ app.get("/api/boards", (_req, res) => {
       })
     : [];
   res.json(list);
+});
+
+app.get("/api/campaigns/:id", (req, res) => {
+  const c = store.read<Campaign>("campaigns", String(req.params.id));
+  c ? res.json(c) : res.status(404).json({ error: "not found" });
 });
 
 app.get("/api/boards/:id", (req, res) => {
@@ -128,7 +155,26 @@ app.post("/api/boards/:id/ask", wrap(async (req, res) => {
 }));
 
 app.post("/api/video", wrap(async (req, res) => res.json(await generateSampleVideo(String(req.body.prompt ?? "")))));
-app.get("/api/video/:requestId", wrap(async (req, res) => res.json(await sampleVideoStatus(String(req.params.requestId)))));
+
+/** Poll a generation; on success, save the MP4 locally (provider links expire) and remember it for the board. */
+app.get("/api/video/:requestId", wrap(async (req, res) => {
+  const s = await sampleVideoStatus(String(req.params.requestId));
+  const boardId = req.query.board ? slug(String(req.query.board)) : null;
+  if (s.videoUrl && boardId) {
+    const file = resolve(DATA, "videos", `${boardId}.mp4`);
+    mkdirSync(resolve(DATA, "videos"), { recursive: true });
+    const r = await fetch(s.videoUrl);
+    if (r.ok) {
+      writeFileSync(file, Buffer.from(await r.arrayBuffer()));
+      return res.json({ ...s, videoUrl: `/api/boards/${boardId}/video.mp4?t=${Date.now()}` });
+    }
+  }
+  res.json(s);
+}));
+app.get("/api/boards/:id/video.mp4", (req, res) => {
+  const file = resolve(DATA, "videos", `${slug(String(req.params.id))}.mp4`);
+  existsSync(file) ? res.sendFile(file) : res.status(404).end();
+});
 
 // Serve the built web app (single-process deploy, e.g. on a GMI Cloud container).
 const dist = resolve(ROOT, "web/dist");
