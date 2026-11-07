@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import BoardView from "./Board";
 import { api, runCampaign } from "./lib";
 import Running from "./Running";
@@ -48,7 +48,7 @@ export default function App() {
 
   return (
     <div>
-      <SpaceBackground dim={view.kind === "setup" ? 0.4 : 0.5} blur={view.kind !== "setup"} />
+      <SpaceBackground dim={view.kind === "setup" ? 0.62 : 0.72} blur={view.kind !== "setup"} />
       <AnimatePresence mode="wait">
         <motion.div key={view.kind} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
           {view.kind === "setup" && <Setup onRun={start} recent={recent} onOpen={(id) => api.board(id).then((board) => setView({ kind: "board", board }))} />}
@@ -66,6 +66,51 @@ function SpaceBackground({ dim, blur }: { dim: number; blur: boolean }) {
   return (
     <div className="space-bg" data-blur={blur || undefined} style={{ "--dim": dim } as CSSProperties} aria-hidden>
       {still ? <img src="/space.jpg" alt="" /> : <video src="/space.mp4" poster="/space.jpg" autoPlay muted loop playsInline preload="auto" />}
+      <Stars />
+    </div>
+  );
+}
+
+/** Seeded so the sky doesn't reshuffle between renders. */
+function rng(seed: number) {
+  return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+}
+
+// Each layer is one 1px element whose box-shadows are the stars, so it paints once and then
+// only opacity and transform animate (both run on the compositor).
+const FIELD = { w: 2560, h: 1600 };
+const LAYERS = [
+  { count: 1700, size: 1.3, glow: 0, alpha: [0.6, 1], twinkle: "7s", drift: "240s" },
+  { count: 450, size: 2, glow: 1, alpha: [0.75, 1], twinkle: "4.5s", drift: "180s" },
+  { count: 90, size: 2.6, glow: 4, alpha: [0.85, 1], twinkle: "3s", drift: "120s" },
+];
+
+function Stars() {
+  const layers = useMemo(() => {
+    const r = rng(42);
+    // Split each size into three groups that twinkle out of phase, so the sky shimmers rather than pulses.
+    return LAYERS.flatMap((l) => [0, 1, 2].map((g) => {
+      const dots: string[] = [];
+      for (let i = 0; i < l.count / 3; i++) {
+        const x = Math.round(r() * FIELD.w);
+        const y = Math.round(r() * FIELD.h);
+        const a = (l.alpha[0] + r() * (l.alpha[1] - l.alpha[0])).toFixed(2);
+        // A few stars get a faint blue or warm tint.
+        const t = r();
+        const c = t < 0.12 ? `rgb(170 200 255 / ${a})` : t > 0.92 ? `rgb(255 225 190 / ${a})` : `rgb(255 255 255 / ${a})`;
+        // Repeat one field-height down so the upward drift loops seamlessly.
+        dots.push(`${x}px ${y}px ${l.glow}px ${c}`, `${x}px ${y + FIELD.h}px ${l.glow}px ${c}`);
+      }
+      return { ...l, delay: `${-g * (parseFloat(l.twinkle) / 3)}s`, shadow: dots.join(",") };
+    }));
+  }, []);
+  return (
+    <div className="stars">
+      {layers.map((l, i) => (
+        <div key={i} className="star-layer" style={{ "--twinkle": l.twinkle, "--drift": l.drift, "--delay": l.delay } as CSSProperties}>
+          <div style={{ width: l.size, height: l.size, borderRadius: "50%", boxShadow: l.shadow }} />
+        </div>
+      ))}
     </div>
   );
 }

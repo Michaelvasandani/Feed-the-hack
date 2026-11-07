@@ -118,6 +118,17 @@ body {
   transform-origin: 0 0;
   filter: blur(5px) saturate(1.3);
 }
+/* Star field above the dimmed video. */
+.space-bg .stars { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.space-bg .star-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform, opacity;
+  animation: star-drift var(--drift) linear infinite, star-twinkle var(--twinkle) ease-in-out var(--delay) infinite alternate;
+}
+@keyframes star-drift { from { transform: translateY(0); } to { transform: translateY(-1600px); } }
+@keyframes star-twinkle { from { opacity: 1; } to { opacity: 0.55; } }
 .space-bg::after {
   content: "";
   position: absolute;
@@ -148,6 +159,7 @@ input, textarea, select { @apply outline-none; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  .space-bg .star-layer { animation: none !important; }
 }
 .row-input {
   @apply min-w-0 flex-1 bg-transparent py-2.5 text-[15px] text-fg placeholder:text-mute;
