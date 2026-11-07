@@ -9,7 +9,14 @@
       "instagram": "rarebeauty",
       "tiktok": "rarebeauty"
     },
-    "productImageUrls": []
+    "productImageUrls": [],
+    "description": "Rare Beauty, Selena Gomez's makeup brand (blush, lip, base)"
+  },
+  "discover": true,
+  "discovery": {
+    "minFollowers": 1000,
+    "maxVideos": 200,
+    "excludeHandles": ["selenagomez"]
   },
   "brief": "Holiday 2026: show Rare Beauty in gift guides, GRWMs and hauls. Say the brand name on camera.",
   "window": {
