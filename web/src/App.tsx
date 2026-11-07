@@ -48,7 +48,7 @@ export default function App() {
 
   return (
     <div>
-      <SpaceBackground dim={view.kind === "board" ? 0.62 : 0.4} />
+      <SpaceBackground dim={view.kind === "setup" ? 0.4 : 0.5} blur={view.kind !== "setup"} />
       <AnimatePresence mode="wait">
         <motion.div key={view.kind} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
           {view.kind === "setup" && <Setup onRun={start} recent={recent} onOpen={(id) => api.board(id).then((board) => setView({ kind: "board", board }))} />}
@@ -61,10 +61,10 @@ export default function App() {
 }
 
 /** Orion Nebula fly-through (NASA/JPL-Caltech, public domain). Shows the still frame when the viewer prefers reduced motion. */
-function SpaceBackground({ dim }: { dim: number }) {
+function SpaceBackground({ dim, blur }: { dim: number; blur: boolean }) {
   const still = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
   return (
-    <div className="space-bg" style={{ "--dim": dim } as CSSProperties} aria-hidden>
+    <div className="space-bg" data-blur={blur || undefined} style={{ "--dim": dim } as CSSProperties} aria-hidden>
       {still ? <img src="/space.jpg" alt="" /> : <video src="/space.mp4" poster="/space.jpg" autoPlay muted loop playsInline preload="auto" />}
     </div>
   );

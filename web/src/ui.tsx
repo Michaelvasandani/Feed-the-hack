@@ -59,7 +59,7 @@ export function FormatChip({ format, size = "sm", onMedia }: { format: Format | 
       className={cx(
         "inline-flex items-center gap-1.5 rounded-full font-medium whitespace-nowrap",
         size === "sm" ? "px-2.5 py-1 text-[13px]" : "px-2 py-0.5 text-[11px]",
-        onMedia ? "bg-black/45 text-white backdrop-blur-md" : "bg-fill text-fg",
+        onMedia ? "bg-black/55 text-white" : "bg-fill text-fg",
       )}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.color }} />

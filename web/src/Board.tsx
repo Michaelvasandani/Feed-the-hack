@@ -32,7 +32,7 @@ export default function Board({ board, onHome, onRerun }: { board: BoardT; onHom
   return (
     <div className="min-h-dvh pb-32">
       <header className="sticky top-3 z-40 mx-auto max-w-7xl px-3 sm:px-4">
-        <div className="glass rounded-full flex justify-between md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-4 h-14 pl-4 pr-2">
+        <div className="glass glass-blur rounded-full flex justify-between md:grid md:grid-cols-[1fr_auto_1fr] items-center gap-4 h-14 pl-4 pr-2">
           <div className="flex items-center gap-3 min-w-0">
             <Logo onClick={onHome} />
             <div className="hidden lg:block text-[13px] text-mute truncate">
@@ -42,7 +42,7 @@ export default function Board({ board, onHome, onRerun }: { board: BoardT; onHom
           <nav role="tablist" className="hidden md:flex rounded-full bg-black/20 p-1 shadow-[inset_0_1px_2px_rgb(0_0_0/0.3)]">
             {TABS.map((t) => (
               <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} className={cx("relative px-4 py-1.5 text-[13px] whitespace-nowrap cursor-pointer rounded-full", tab === t.key ? "text-fg font-medium" : "text-soft hover:text-fg")}>
-                {tab === t.key && <motion.div layoutId="tab" transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }} className="glass absolute inset-0 rounded-full !shadow-[inset_0_1px_0.5px_rgb(255_255_255/0.4),inset_0_0_0_0.5px_rgb(255_255_255/0.2)]" />}
+                {tab === t.key && <motion.div layoutId="tab" transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }} className="absolute inset-0 rounded-full bg-white/18 shadow-[inset_0_1px_0.5px_rgb(255_255_255/0.4),inset_0_0_0_0.5px_rgb(255_255_255/0.2)]" />}
                 <span className="relative">{t.label}</span>
               </button>
             ))}
@@ -54,7 +54,7 @@ export default function Board({ board, onHome, onRerun }: { board: BoardT; onHom
         {/* Compact screens: a scrolling row of the same tabs. */}
         <div className="md:hidden flex gap-1.5 overflow-x-auto [scrollbar-width:none] pt-2 px-1">
           {TABS.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={cx("shrink-0 rounded-full px-3 py-1 text-[13px] cursor-pointer", tab === t.key ? "glass text-fg font-medium" : "bg-black/30 backdrop-blur-md text-soft")}>{t.label}</button>
+            <button key={t.key} onClick={() => setTab(t.key)} className={cx("shrink-0 rounded-full px-3 py-1 text-[13px] cursor-pointer", tab === t.key ? "glass text-fg font-medium" : "bg-black/50 text-soft")}>{t.label}</button>
           ))}
         </div>
       </header>
@@ -358,7 +358,7 @@ function AskBar({ board }: { board: BoardT }) {
             ))}
           </div>
         )}
-        <form onSubmit={(e) => { e.preventDefault(); ask(q); }} className="glass flex items-center gap-2 rounded-full p-1.5 pl-5">
+        <form onSubmit={(e) => { e.preventDefault(); ask(q); }} className="glass glass-blur flex items-center gap-2 rounded-full p-1.5 pl-5">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ask about this campaign" aria-label="Ask about this campaign" className="flex-1 bg-transparent text-[15px] placeholder:text-mute min-w-0" />
           <Button type="submit" className="!p-0 h-8 w-8" disabled={busy || !q.trim()}>{busy ? <Spinner /> : <ArrowUp size={17} strokeWidth={2.5} />}</Button>
         </form>

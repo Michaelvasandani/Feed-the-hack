@@ -105,7 +105,7 @@ function VideoCard({ v, onOpen }: { v: Video; onOpen: () => void }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-black/25" />
         <div className="absolute top-2.5 inset-x-2.5 flex items-start justify-between gap-1">
           <FormatChip format={v.format} size="xs" onMedia />
-          <span className="rounded-full bg-black/45 backdrop-blur-md px-2 py-0.5 text-[11px] font-medium text-white">{v.platform === "tiktok" ? "TikTok" : "IG"}</span>
+          <span className="rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">{v.platform === "tiktok" ? "TikTok" : "IG"}</span>
         </div>
         {hover && frames.length > 1 && (
           <div className="absolute top-10 inset-x-2.5 flex gap-0.5">
@@ -116,7 +116,7 @@ function VideoCard({ v, onOpen }: { v: Video; onOpen: () => void }) {
           {!v.tagged && (
             <div className="mb-2 flex flex-wrap gap-1">
               <Pill className="!bg-[#ff9f0a] !text-black"><Tag size={10} /> Untagged</Pill>
-              {why.slice(0, 1).map((w, i) => <Pill key={i} className="!bg-black/45 !text-white backdrop-blur-md"><w.icon size={10} /> {w.text}</Pill>)}
+              {why.slice(0, 1).map((w, i) => <Pill key={i} className="!bg-black/55 !text-white"><w.icon size={10} /> {w.text}</Pill>)}
             </div>
           )}
           <div className="flex items-end justify-between gap-2">

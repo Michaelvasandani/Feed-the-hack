@@ -74,7 +74,7 @@ export default function Setup({ onRun, recent, onOpen }: {
   return (
     <div className="min-h-dvh">
       <nav className="sticky top-3 z-40 mx-auto max-w-5xl px-3 sm:px-4">
-        <div className="glass rounded-full flex items-center justify-between h-12 pl-4 pr-5">
+        <div className="glass glass-blur rounded-full flex items-center justify-between h-12 pl-4 pr-5">
           <Logo />
           <div className="hidden sm:block text-[12px] text-mute">Data from Oriane · Models on GMI Cloud</div>
         </div>
@@ -127,7 +127,7 @@ export default function Setup({ onRun, recent, onOpen }: {
 
             <div>
               <div className="flex items-center justify-between mb-1.5 px-4">
-                <div className="text-[13px] text-mute">Creators{c.creators.length > 0 && ` · ${c.creators.length}`}</div>
+                <div className="text-[13px] text-white/70">Creators{c.creators.length > 0 && ` · ${c.creators.length}`}</div>
                 <div className="flex gap-3 text-[13px]">
                   <button className="text-accent hover:underline cursor-pointer" onClick={() => setShowPaste((s) => !s)}>Paste list</button>
                   <button className="text-accent hover:underline cursor-pointer" onClick={() => set({ creators: [...c.creators, { name: "", handles: {} }] })}>Add</button>
@@ -182,7 +182,7 @@ export default function Setup({ onRun, recent, onOpen }: {
 
         {recent.length > 0 && (
           <section className="pb-20">
-            <div className="text-[13px] text-mute mb-1.5 px-4">Recent boards</div>
+            <div className="text-[13px] text-white/70 mb-1.5 px-4">Recent boards</div>
             <div className="surface rounded-[20px] divide-y divide-line overflow-hidden">
               {recent.map((r) => (
                 <button key={r.id} onClick={() => onOpen(r.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-fill transition cursor-pointer">
@@ -206,9 +206,9 @@ export default function Setup({ onRun, recent, onOpen }: {
 function Group({ title, footer, children }: { title: string; footer?: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[13px] text-mute mb-1.5 px-4">{title}</div>
+      <div className="text-[13px] text-white/70 mb-1.5 px-4">{title}</div>
       <div className="surface rounded-[20px] divide-y divide-line overflow-hidden">{children}</div>
-      {footer && <div className="text-[12px] text-mute mt-1.5 px-4 leading-snug">{footer}</div>}
+      {footer && <div className="text-[12px] text-white/60 mt-1.5 px-4 leading-snug">{footer}</div>}
     </div>
   );
 }
