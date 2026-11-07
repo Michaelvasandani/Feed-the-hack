@@ -62,6 +62,14 @@ body { margin: 0; background: var(--bg); color: var(--label); font: 15px/1.4 var
 .pill { font-size: 13px; font-weight: 600; border-radius: 99px; padding: 4px 12px; border: 0; cursor: pointer; font-family: inherit; }
 .pill.rehire { background: color-mix(in srgb, var(--tint) 14%, transparent); color: var(--tint); }
 .pill.nudge { background: color-mix(in srgb, var(--orange) 16%, transparent); color: var(--orange); }
+.pill.recruit { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+.new { font-size: 11px; font-weight: 600; color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); border-radius: 99px; padding: 1px 7px; margin-left: 6px; vertical-align: 1px; }
+.switch { appearance: none; -webkit-appearance: none; justify-self: end; width: 51px; height: 31px; padding: 0; border-radius: 99px; background: var(--fill); position: relative; cursor: pointer; transition: background .2s; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.2); transition: transform .2s; }
+.switch:checked { background: var(--green); }
+.switch:checked::after { transform: translateX(20px); }
+.switch:focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+#disc .f::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: .5px solid var(--sep); }
 .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 6px; }
 .dot.quiet { background: var(--orange); }
 
@@ -161,10 +169,24 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--tint); outline-
         <div class="group">
           <div class="f"><label for="brand">Name</label><input id="brand" required placeholder="Rare Beauty"></div>
           <div class="f"><label for="aliases">Aliases</label><input id="aliases" placeholder="rare beauty, rarebeauty"></div>
+          <div class="f"><label for="desc">What it is</label><input id="desc" placeholder="Lovable, the AI app builder"></div>
           <div class="f"><label for="bh-tt">TikTok</label><input id="bh-tt" placeholder="@handle"></div>
           <div class="f"><label for="bh-ig">Instagram</label><input id="bh-ig" placeholder="@handle"></div>
         </div>
-        <div class="foot">Aliases are words that count as a mention when said or shown, comma-separated.</div>
+        <div class="foot">Aliases are words that count as a mention when said or shown, comma-separated. "What it is" helps discovery tell the brand from the ordinary word ("lovable puppies").</div>
+      </div>
+      <div class="fg">
+        <div class="lab">Discovery</div>
+        <div class="group">
+          <div class="f" style="grid-template-columns: minmax(0, 1fr) auto"><label for="discover">Find creators automatically</label><input type="checkbox" class="switch" id="discover" role="switch"></div>
+          <div id="disc" hidden>
+            <div class="f"><label for="min-f">Min followers</label><input id="min-f" type="number" min="0" placeholder="1,000"></div>
+            <div class="f"><label for="max-f">Max followers</label><input id="max-f" type="number" min="0" placeholder="No limit"></div>
+            <div class="f"><label for="max-v">Videos to pull</label><input id="max-v" type="number" min="1" max="2000" placeholder="200, top by views"></div>
+            <div class="f"><label for="exclude">Exclude</label><input id="exclude" placeholder="founder, celebrity, partner handles"></div>
+          </div>
+        </div>
+        <div class="foot">Searches all of TikTok and Instagram for videos that say, show or tag the brand. The brand's own accounts are left out.</div>
       </div>
       <div class="fg">
         <div class="lab">Brief</div>
@@ -175,9 +197,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--tint); outline-
         </div>
       </div>
       <div class="fg">
-        <div class="lab">Creators</div>
-        <div class="group"><div class="f tall"><textarea id="creators" rows="7" aria-label="Creators"></textarea></div></div>
-        <div class="foot">One per line: <code>Name, tt:handle, ig:handle</code>. A bare <code>@handle</code> is treated as TikTok.</div>
+        <div class="lab">Creators you hired <span id="creators-opt"></span></div>
+        <div class="group"><div class="f tall"><textarea id="creators" rows="7" aria-label="Creators you hired"></textarea></div></div>
+        <div class="foot">One per line: <code>Name, tt:handle, ig:handle</code>. A bare <code>@handle</code> is treated as TikTok. These get posted / quiet tracking.</div>
       </div>
       <div class="fg">
         <div class="lab">Product images</div>
@@ -236,7 +258,20 @@ function fillForm(c) {
   $("#end").value = c.window.end || "";
   $("#creators").value = creatorsToText(c.creators);
   $("#images").value = (c.brand.productImageUrls || []).join("\n");
+  $("#desc").value = c.brand.description || "";
+  const d = c.discovery || {};
+  $("#discover").checked = !!c.discover;
+  $("#min-f").value = d.minFollowers ?? "";
+  $("#max-f").value = d.maxFollowers ?? "";
+  $("#max-v").value = d.maxVideos ?? "";
+  $("#exclude").value = (d.excludeHandles || []).join(", ");
+  syncDiscover();
 }
+function syncDiscover() {
+  $("#disc").hidden = !$("#discover").checked;
+  $("#creators-opt").textContent = $("#discover").checked ? "· optional" : "";
+}
+const num = (el) => (el.value.trim() ? Number(el.value) : undefined);
 function readForm() {
   const handles = {};
   if ($("#bh-tt").value.trim()) handles.tiktok = $("#bh-tt").value.trim().replace(/^@/, "");
@@ -245,11 +280,16 @@ function readForm() {
   const aliases = $("#aliases").value.split(",").map((a) => a.trim().toLowerCase()).filter(Boolean);
   return {
     id: campaignId,
-    brand: { name, aliases: aliases.length ? aliases : [name.toLowerCase()], handles,
+    brand: { name, aliases: aliases.length ? aliases : [name.toLowerCase()], handles, description: $("#desc").value.trim(),
              productImageUrls: $("#images").value.split("\n").map((s) => s.trim()).filter(Boolean) },
     brief: $("#brief").value.trim(),
     window: { start: $("#start").value, ...($("#end").value ? { end: $("#end").value } : {}) },
     creators: textToCreators($("#creators").value),
+    discover: $("#discover").checked,
+    discovery: {
+      minFollowers: num($("#min-f")), maxFollowers: num($("#max-f")), maxVideos: num($("#max-v")),
+      excludeHandles: $("#exclude").value.split(",").map((h) => h.trim().replace(/^@/, "").toLowerCase()).filter(Boolean),
+    },
   };
 }
 
@@ -281,6 +321,12 @@ async function load(promise, label) {
 function render(b) {
   lastBoard = b;
   const t = b.totals, quiet = b.creators.filter((c) => c.status === "quiet");
+  const found = t.creatorsDiscovered || 0;
+  const recruits = b.creators.filter((c) => c.recommendation === "recruit");
+  const creatorTile = t.creatorsTotal
+    ? tile("Posted", `${t.creatorsPosted}<small> of ${t.creatorsTotal}</small>`, [quiet.length ? `${quiet.length} went quiet` : "Everyone posted", found ? `+${found} found` : ""].filter(Boolean).join(" · "), "var(--green)")
+    : tile("Creators found", found, `${recruits.length} beat their follower count`, "var(--green)");
+  const dropped = t.droppedOffBrand ? `<div class="foot">Left out ${t.droppedOffBrand} found video${t.droppedOffBrand === 1 ? "" : "s"} that only used the word, not the brand.</div>` : "";
   const win = b.formats.find((f) => f.winner);
   const max = Math.max(...b.formats.map((f) => f.avgViewsPerFollowerPct || 0), 1);
   $("#bar-title").textContent = b.campaign.brandName;
@@ -294,7 +340,7 @@ function render(b) {
     <section class="tiles">
       ${tile("Views", fmtN(t.views), `${fmtN(t.likes)} likes · ${fmtN(t.shares)} shares`, "var(--tint)")}
       ${tile("Videos", t.videos, `${fmtN(t.comments)} comments`, "var(--blue)")}
-      ${tile("Posted", `${t.creatorsPosted}<small> of ${t.creatorsTotal}</small>`, quiet.length ? `${quiet.length} went quiet` : "Everyone posted", "var(--green)")}
+      ${creatorTile}
       ${tile("Untagged", t.untaggedVideos, `${fmtN(t.untaggedViews)} views you'd have missed`, "var(--orange)")}
     </section>
 
@@ -322,8 +368,9 @@ function render(b) {
 
     <section class="section">
       <div class="section-h"><h2>Videos</h2>
-        <div class="seg" id="seg">${[["all", "All"], ["untagged", "Untagged"]].map(([k, l]) => `<button type="button" data-f="${k}" class="${feedFilter === k ? "on" : ""}">${l}</button>`).join("")}</div>
+        <div class="seg" id="seg">${[["all", "All"], ["untagged", "Untagged"], ...(found ? [["new", "New creators"]] : [])].map(([k, l]) => `<button type="button" data-f="${k}" class="${feedFilter === k ? "on" : ""}">${l}</button>`).join("")}</div>
       </div>
+      ${dropped}
       <div class="feed" id="feed"></div>
     </section>`;
   $("#seg").onclick = (e) => { if (e.target.dataset.f) { feedFilter = e.target.dataset.f; render(lastBoard); } };
@@ -335,15 +382,17 @@ function tile(k, v, s, color) {
 }
 function creatorRow(c, i) {
   const handle = c.handles.tiktok || c.handles.instagram;
-  const btn = c.recommendation === "keep" ? "" : `<button type="button" class="pill ${c.recommendation}" data-act="${c.recommendation}" data-name="${esc(c.name)}">${c.recommendation === "rehire" ? "Rehire" : "Nudge"}</button>`;
+  const label = { rehire: "Rehire", nudge: "Nudge", recruit: "Recruit" }[c.recommendation];
+  const btn = label ? `<button type="button" class="pill ${c.recommendation}" data-act="${c.recommendation}" data-name="${esc(c.name)}">${label}</button>` : "";
   return `<div class="row">
     <div class="av" style="background:${HUES[i % HUES.length]}">${esc(c.name[0])}</div>
-    <div class="who"><div class="n">${esc(c.name)}</div><div class="d"><span class="dot ${c.status}"></span>${c.status === "posted" ? `${c.videos} video${c.videos === 1 ? "" : "s"} · ${fmtN(c.views)} views` : "No post yet"} · @${esc(handle)}${c.followers ? " · " + fmtN(c.followers) + " followers" : ""}</div></div>
+    <div class="who"><div class="n">${esc(c.name)}${c.discovered ? '<span class="new">New</span>' : ""}</div><div class="d"><span class="dot ${c.status}"></span>${c.status === "posted" ? `${c.videos} video${c.videos === 1 ? "" : "s"} · ${fmtN(c.views)} views` : "No post yet"} · @${esc(handle)}${c.followers ? " · " + fmtN(c.followers) + " followers" : ""}</div></div>
     <div class="right"><span class="num">${c.status === "posted" ? fmtX(c.bestViewsPerFollowerPct) : ""}</span>${btn}</div>
   </div>`;
 }
 function renderFeed(b) {
-  const vids = b.videos.filter((v) => feedFilter === "all" || !v.tagged);
+  const newHandles = new Set(b.creators.filter((c) => c.discovered).flatMap((c) => Object.values(c.handles).map((h) => h.toLowerCase())));
+  const vids = b.videos.filter((v) => feedFilter === "all" || (feedFilter === "untagged" ? !v.tagged : newHandles.has(v.creatorHandle.toLowerCase())));
   if (!vids.length) { $("#feed").innerHTML = `<div class="empty-feed">No videos.</div>`; return; }
   const names = Object.fromEntries(b.creators.flatMap((c) => Object.values(c.handles).map((h) => [h.toLowerCase(), c.name])));
   $("#feed").innerHTML = vids.map((v) => {
@@ -362,9 +411,11 @@ function renderFeed(b) {
   }).join("");
 }
 function act(kind, name) {
-  const first = name.split(" ")[0], brand = lastBoard.campaign.brandName;
+  const first = name.replace(/^@/, "").split(" ")[0], brand = lastBoard.campaign.brandName;
   const text = kind === "nudge"
     ? `Hey ${first}! Quick check-in on the ${brand} campaign: we haven't seen a post yet. Anything you need from us to get it live this week?`
+    : kind === "recruit"
+    ? `Hey ${first}! We loved your ${brand} video, it reached way past your follower count. We run ${brand}'s creator program and would love to work with you on the next drop. Open to a paid collab?`
     : `Hey ${first}! Your ${brand} video crushed it, way past your follower count. We'd love to book you for the next drop. Interested?`;
   const copied = () => toast(`Message for ${first} copied`);
   navigator.clipboard ? navigator.clipboard.writeText(text).then(copied, () => prompt("Copy this message:", text)) : prompt("Copy this message:", text);
@@ -374,8 +425,9 @@ function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.ad
 $("#form").onsubmit = (e) => {
   e.preventDefault();
   const campaign = readForm();
-  if (!campaign.creators.length) return setStatus("Add at least one creator.", { err: true });
-  const slow = campaign.brand.productImageUrls.length ? " Visual search is on, so this takes 1–2 minutes." : "";
+  if (!campaign.creators.length && !campaign.discover) return setStatus("Add at least one creator, or turn on Find creators automatically.", { err: true });
+  const slow = campaign.brand.productImageUrls.length ? " Visual search is on, so this takes 1–2 minutes."
+    : campaign.discover ? " Searching all creators, about 30 seconds." : "";
   load(fetch("/api/board", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaign, live: true }) }), "Pulling videos from TikTok and Instagram and classifying formats…" + slow);
 };
 const loadSample = () => load(fetch("/api/sample-board"), "Loading sample…");
@@ -384,6 +436,7 @@ $("#sample-start").onclick = loadSample;
 $("#open-setup").onclick = () => { setStatus(""); $("#setup").showModal(); };
 $("#edit").onclick = () => { setStatus(""); $("#setup").showModal(); };
 $("#cancel").onclick = () => $("#setup").close();
+$("#discover").onchange = syncDiscover;
 addEventListener("scroll", () => document.body.classList.toggle("scrolled", scrollY > 60), { passive: true });
 
 fetch("/api/sample-campaign").then((r) => r.json()).then(fillForm);

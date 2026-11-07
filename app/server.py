@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from app.classify import classify_videos
 from app.fetch import OrianeError, fetch_videos
 from app.metrics import build_board
+from app.relevance import filter_relevant
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "fixtures"
@@ -27,6 +28,8 @@ class BoardRequest(BaseModel):
 
 def run_pipeline(campaign, live):
     videos = fetch_videos(campaign) if live else json.loads((FIXTURES / "videos.json").read_text())
+    if campaign.get("discover"):
+        videos = filter_relevant(campaign, videos)
     labeled = classify_videos(videos)
     board = build_board(campaign, labeled)
     OUT.mkdir(exist_ok=True)
@@ -53,8 +56,10 @@ def sample_board():
 @app.post("/api/board")
 def board(req: BoardRequest):
     camp = req.campaign
-    if not camp.get("creators") or not camp.get("brand", {}).get("aliases"):
-        raise HTTPException(400, "campaign needs at least one creator and one brand alias")
+    if not camp.get("brand", {}).get("aliases"):
+        raise HTTPException(400, "campaign needs at least one brand alias")
+    if not camp.get("creators") and not camp.get("discover"):
+        raise HTTPException(400, "add at least one creator, or turn on automatic discovery")
     try:
         return run_pipeline(camp, req.live)
     except OrianeError as e:

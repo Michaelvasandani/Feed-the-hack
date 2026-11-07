@@ -80,3 +80,24 @@ def test_winner_needs_two_videos():
 def test_window_end_filters(campaign):
     labeled = {"videos": [vid(creatorHandle="presliewatson", publishedAt="2026-12-01T00:00:00Z")]}
     assert build_board(campaign, labeled)["totals"]["videos"] == 0
+
+
+def test_discovered_creators_join_board(campaign):
+    labeled = {"videos": [vid(creatorHandle="newbie", views=5000, followers=1000, viewsPerFollowerPct=500),
+                          vid(creatorHandle="newbie", platform="instagram", views=10, viewsPerFollowerPct=1),
+                          vid(creatorHandle="smallfry", views=10, viewsPerFollowerPct=10)]}
+    board = build_board(campaign, labeled)
+    found = {c["name"]: c for c in board["creators"] if c["discovered"]}
+    assert set(found) == {"@newbie", "@smallfry"}
+    assert found["@newbie"]["videos"] == 2 and set(found["@newbie"]["handles"]) == {"tiktok", "instagram"}
+    assert found["@newbie"]["recommendation"] == "recruit"
+    assert found["@smallfry"]["recommendation"] == "keep"
+    t = board["totals"]
+    assert t["creatorsDiscovered"] == 2 and t["creatorsTotal"] == 9 and t["creatorsPosted"] == 0
+
+
+def test_discovery_only_campaign(campaign):
+    campaign = {**campaign, "creators": []}
+    board = build_board(campaign, {"videos": [vid(creatorHandle="x")]})
+    assert board["totals"]["creatorsTotal"] == 0
+    assert board["creators"][0]["discovered"]
