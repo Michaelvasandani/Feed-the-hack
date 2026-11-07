@@ -2,6 +2,10 @@
 
 Matches brand aliases in caption / transcript / on-screen text, brand @mentions, and (when the
 campaign has productImageUrls) videos that visually look like the product.
+
+With `discover: true` it also searches every creator on the platforms, not only the roster, and keeps
+the top `discovery.maxVideos` by views. The brand's own accounts and `discovery.excludeHandles` are
+dropped; `discovery.minFollowers` / `maxFollowers` bound who counts as a creator.
 """
 import json
 import os
@@ -15,6 +19,7 @@ BASE = "https://connect.oriane.xyz/rest"
 PAGE = 100
 MAX_PAGES = 20
 VISUAL_MIN_SCORE = float(os.environ.get("VISUAL_MIN_SCORE", "0.82"))
+DISCOVER_MAX_VIDEOS = 200
 
 
 class OrianeError(RuntimeError):
@@ -43,8 +48,8 @@ def create_image_asset(url):
     return _post("assets", {"type": "image", "image": {"type": "url", "url": url}})["data"]["id"]
 
 
-def build_query(camp, asset_ids=()):
-    handles = sorted({h for c in camp["creators"] for h in c["handles"].values()})
+def build_query(camp, asset_ids=(), handles=None):
+    """Brand-match query. `handles` limits it to those creators; None searches everyone."""
     aliases = camp["brand"]["aliases"]
     brand_handles = sorted(set(camp["brand"]["handles"].values()))
     published = {"after": camp["window"]["start"]}
@@ -54,21 +59,27 @@ def build_query(camp, asset_ids=()):
         "transcript": {"includesExactly": {"values": aliases}},
         "onScreenText": {"includesExactly": {"values": aliases}},
         "caption": {"includesExactly": {"values": aliases}},
-        "mentionHandles": {"exactMatch": {"values": brand_handles}},
     }}]
+    if brand_handles:
+        match[0]["filters"]["mentionHandles"] = {"exactMatch": {"values": brand_handles}}
     if asset_ids:
         match.append({"name": "visual", "operator": "or", "filters": {"visualSimilarity": {"includes": {
             "operator": "or", "values": [{"assetId": a, "minScore": VISUAL_MIN_SCORE} for a in asset_ids]}}}})
-    return {"operator": "and",
-            "filters": {"profileHandle": {"exactMatch": {"values": handles}}, "publishedAt": published,
-                        "platform": {"includes": ["instagram", "tiktok"]}},
-            "queries": [{"operator": "or", "queries": match}]}
+    filters = {"publishedAt": published, "platform": {"includes": ["instagram", "tiktok"]}}
+    if handles is not None:
+        filters["profileHandle"] = {"exactMatch": {"values": sorted(handles)}}
+    else:
+        d = camp.get("discovery") or {}
+        followers = {k: d[f] for k, f in [("min", "minFollowers"), ("max", "maxFollowers")] if d.get(f)}
+        if followers:
+            filters["profileFollowersCount"] = followers
+    return {"operator": "and", "filters": filters, "queries": [{"operator": "or", "queries": match}]}
 
 
-def search_all(body):
+def search_all(body, sort="publishedAt", max_results=PAGE * MAX_PAGES):
     results, anchor, offset, ts = [], None, 0, None
     for _ in range(MAX_PAGES):
-        params = {"limit": PAGE, "offset": offset, "projection": "full", "sort": "publishedAt"}
+        params = {"limit": min(PAGE, max_results - offset), "offset": offset, "projection": "full", "sort": sort}
         if anchor:
             params["aiSearchAnchor"] = anchor
         raw = _post("contents/search", body, params)
@@ -79,7 +90,7 @@ def search_all(body):
         pag = meta.get("pagination") or {}
         anchor = anchor or pag.get("aiSearchAnchor")
         offset += len(page)
-        if not page or offset >= pag.get("totalCount", 0):
+        if not page or offset >= min(pag.get("totalCount", 0), max_results):
             break
     return results, ts
 
@@ -129,13 +140,31 @@ def to_video(r, camp):
     }
 
 
+def keep_result(r, camp, roster):
+    """Roster videos always count; with discovery on, so does anyone but the brand itself."""
+    key = (r["platform"], r["profileHandle"].lower())
+    if key in roster:
+        return True
+    if not camp.get("discover"):
+        return False
+    skip = {h.lower().lstrip("@") for h in [*camp["brand"]["handles"].values(),
+                                            *(camp.get("discovery") or {}).get("excludeHandles", [])]}
+    return key[1] not in skip
+
+
 def fetch_videos(camp):
     asset_ids = [create_image_asset(u) for u in camp["brand"].get("productImageUrls") or []]
-    results, ts = search_all(build_query(camp, asset_ids))
-    pairs = {(p, h.lower()) for c in camp["creators"] for p, h in c["handles"].items()}
+    roster = {(p, h.lower()) for c in camp.get("creators") or [] for p, h in c["handles"].items()}
+    results, ts = [], None
+    if roster:
+        results, ts = search_all(build_query(camp, asset_ids, {h for _, h in roster}))
+    if camp.get("discover"):
+        cap = int((camp.get("discovery") or {}).get("maxVideos") or DISCOVER_MAX_VIDEOS)
+        found, ts2 = search_all(build_query(camp, asset_ids), sort="viewsCount", max_results=cap)
+        results, ts = results + found, ts or ts2
     seen, out = set(), []
     for r in results:
-        if (r["platform"], r["profileHandle"].lower()) in pairs and r["id"] not in seen:
+        if keep_result(r, camp, roster) and r["id"] not in seen:
             seen.add(r["id"])
             out.append(to_video(r, camp))
     return {"campaignId": camp["id"], "fetchedAt": ts, "videos": out}
